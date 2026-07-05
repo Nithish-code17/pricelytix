@@ -1,31 +1,38 @@
 import "dotenv/config";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const connectionString = process.env.DATABASE_URL ?? "file:./dev.db";
-const isSqlite =
-  connectionString.startsWith("file:") ||
-  connectionString.startsWith("sqlite:") ||
-  (!connectionString.startsWith("postgres:") && !connectionString.startsWith("postgresql:"));
+const databaseUrl = process.env.DATABASE_URL ?? "file:./dev.db";
 
-let prismaInstance: PrismaClient;
+function createPrismaClient() {
+  if (
+    databaseUrl.startsWith("postgresql://") ||
+    databaseUrl.startsWith("postgres://")
+  ) {
+    const adapter = new PrismaPg({
+      connectionString: databaseUrl,
+    });
 
-if (isSqlite) {
-  const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
+    return new PrismaClient({
+      adapter,
+    });
+  }
+
   const adapter = new PrismaBetterSqlite3({
-    url: connectionString,
+    url: databaseUrl,
   });
-  prismaInstance = new PrismaClient({
+
+  return new PrismaClient({
     adapter,
   });
-} else {
-  prismaInstance = new PrismaClient();
 }
 
-export const prisma = globalForPrisma.prisma ?? prismaInstance;
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
