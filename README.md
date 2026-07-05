@@ -1,17 +1,51 @@
-# 🛒 Pricelytix — AI-Powered Price Tracking Agent
+<div align="center">
 
-<p align="center">
-  <b>Track product prices, analyze price trends, receive smart alerts, and get AI-powered buy/wait recommendations.</b>
-</p>
+# 🛒 Pricelytix
+### AI-Powered Price Tracking Agent
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
-  <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
-  <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma" />
-  <img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=for-the-badge&logo=postgresql" />
-  <img src="https://img.shields.io/badge/AI-Powered-06B6D4?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel" />
-</p>
+**Track product prices. Analyze trends. Get smart alerts. Let AI tell you when to buy.**
+
+<img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
+<img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
+<img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma" />
+<img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=for-the-badge&logo=postgresql" />
+<img src="https://img.shields.io/badge/AI-Powered-06B6D4?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel" />
+<img src="https://img.shields.io/badge/License-MIT-8b5cf6?style=for-the-badge" />
+
+<br/>
+
+<img src="https://img.shields.io/badge/Status-Active-22c55e?style=flat-square" />
+<img src="https://img.shields.io/badge/Made%20with-%E2%9D%A4-f43f5e?style=flat-square" />
+<img src="https://img.shields.io/badge/PRs-Welcome-38bdf8?style=flat-square" />
+
+</div>
+
+---
+
+### 📖 Table of Contents
+
+- [Project Overview](#-project-overview)
+- [Problem Statement](#-problem-statement)
+- [Key Features](#-key-features)
+- [Technology Stack](#-technology-stack)
+- [System Architecture](#-system-architecture)
+- [Product Tracking Workflow](#-product-tracking-workflow)
+- [AI Assistant Workflow](#-ai-assistant-workflow)
+- [Authentication Flow](#-authentication-flow)
+- [Email Alert Flow](#-email-alert-flow)
+- [Price Fetching Strategy](#-price-fetching-strategy)
+- [Database Models](#-database-models)
+- [API Routes](#-important-api-routes)
+- [Prompt Engineering](#-prompt-engineering)
+- [AI Fallback Mode](#-ai-fallback-mode)
+- [Security Features](#-security-features)
+- [Local Setup](#-local-setup)
+- [Deployment](#-production-deployment)
+- [Testing Checklist](#-testing-checklist)
+- [Limitations](#️-limitations)
+- [Future Enhancements](#-future-enhancements)
+- [Author](#-author)
 
 ---
 
@@ -22,6 +56,14 @@
 Users can create an account, add product URLs, set target prices, refresh prices, view price history charts, receive in-app notifications, and get email alerts when the product price becomes less than or equal to the target price.
 
 The project also includes an **AI Shopping Assistant** that can understand natural language shopping queries, extract product URLs and target prices, detect user intent, and provide buy/wait recommendations.
+
+<div align="center">
+
+| 🔐 Auth | 📦 Tracking | 🤖 AI | 📧 Alerts | 🌑 UI |
+|:---:|:---:|:---:|:---:|:---:|
+| JWT + bcrypt | Amazon & Flipkart | LLM + Fallback | Email + In-App | Dark SaaS |
+
+</div>
 
 ---
 
@@ -202,23 +244,38 @@ The app supports a real OpenAI-compatible API mode and also includes a fallback 
 ## 🏗 System Architecture
 
 ```mermaid
-flowchart TD
-    A[User] --> B[Next.js Frontend]
-    B --> C[Next.js API Routes]
-    C --> D[Business Logic Layer]
-    D --> E[Prisma ORM]
-    E --> F[(Database)]
+flowchart LR
+    U["👤 User"] --> FE["🖥️ Next.js Frontend<br/>React + Tailwind"]
+    FE --> API["⚙️ Next.js API Routes"]
 
-    C --> G[Price Fetcher]
-    G --> H[Amazon / Flipkart Pages]
+    subgraph Core["Application Core"]
+        API --> BL["🧩 Business Logic Layer"]
+        BL --> ORM["🗂️ Prisma ORM"]
+        ORM --> DB[("💾 Database<br/>SQLite / PostgreSQL")]
+    end
 
-    C --> I[AI Assistant Engine]
-    I --> J[LLM API or Rule-Based Fallback]
+    subgraph Scraping["Price Fetching"]
+        API --> PF["🔍 Price Fetcher"]
+        PF --> STORE["🛍️ Amazon / Flipkart"]
+    end
 
-    C --> K[Notification Engine]
-    K --> L[Email Service - Nodemailer]
+    subgraph AI["AI Layer"]
+        API --> AIE["🤖 AI Assistant Engine"]
+        AIE --> LLM["🧠 LLM API"]
+        AIE --> FALL["📏 Rule-Based Fallback"]
+    end
 
-    L --> M[User Email Inbox]
+    subgraph Notify["Notification Layer"]
+        API --> NE["🔔 Notification Engine"]
+        NE --> MAIL["📧 Nodemailer SMTP"]
+        MAIL --> INBOX["📥 User Email Inbox"]
+    end
+
+    style U fill:#0f172a,stroke:#38bdf8,color:#fff
+    style FE fill:#1e293b,stroke:#38bdf8,color:#fff
+    style API fill:#1e293b,stroke:#38bdf8,color:#fff
+    style DB fill:#0f172a,stroke:#22d3ee,color:#fff
+    style INBOX fill:#0f172a,stroke:#22d3ee,color:#fff
 ```
 
 ---
@@ -227,19 +284,117 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[User Logs In] --> B[Add Product URL]
-    B --> C[Enter Target Price]
-    C --> D[Detect Store]
-    D --> E[Fetch Current Price]
-    E --> F[Save Product]
-    F --> G[Create Tracker]
-    G --> H[Show Product in Dashboard]
-    H --> I[Refresh Price]
-    I --> J[Save Price History]
-    J --> K{Current Price <= Target Price?}
-    K -- Yes --> L[Create Notification]
-    L --> M[Send Email Alert]
-    K -- No --> N[Continue Monitoring]
+    A(["🔑 User Logs In"]) --> B["🔗 Add Product URL"]
+    B --> C["🎯 Enter Target Price"]
+    C --> D{"🏬 Detect Store"}
+    D -->|Amazon| E["💰 Fetch Current Price"]
+    D -->|Flipkart| E
+    E --> F["💾 Save Product"]
+    F --> G["📌 Create Tracker"]
+    G --> H["📊 Show in Dashboard"]
+    H --> I["🔄 Refresh Price"]
+    I --> J["📈 Save Price History"]
+    J --> K{"Current Price ≤ Target Price?"}
+    K -- ✅ Yes --> L["🔔 Create Notification"]
+    L --> M["📧 Send Email Alert"]
+    K -- ❌ No --> N["👀 Continue Monitoring"]
+    N -.->|next scheduled run| I
+
+    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
+    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
+    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
+    classDef alert fill:#0f172a,stroke:#f43f5e,color:#fff
+    class A start
+    class B,C,E,F,G,H,I,J,N action
+    class D,K decision
+    class L,M alert
+```
+
+---
+
+## 🤖 AI Assistant Workflow
+
+```mermaid
+flowchart TD
+    A(["💬 User Sends Message"]) --> B["📝 Parse Natural Language Input"]
+    B --> C{"🔑 AI API Key Configured?"}
+    C -- Yes --> D["🧠 Call LLM API"]
+    C -- No --> E["📏 Rule-Based Fallback Engine"]
+    D --> F["📦 Structured JSON Response"]
+    E --> F
+    F --> G{"🎯 Detected Intent"}
+    G -->|TRACK_PRODUCT| H["➕ Extract URL + Target Price"]
+    G -->|PRICE_ADVICE| I["📊 Generate Buy / Wait Recommendation"]
+    G -->|GENERAL_HELP| J["💡 Return Guidance Message"]
+    H --> K["✅ Suggest: Add to Tracker"]
+    I --> K
+    J --> K
+
+    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
+    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
+    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
+    classDef result fill:#0f172a,stroke:#a855f7,color:#fff
+    class A start
+    class B,D,E,F,H,I,J action
+    class C,G decision
+    class K result
+```
+
+---
+
+## 🔐 Authentication Flow
+
+```mermaid
+flowchart TD
+    A(["🧾 User Submits Login Form"]) --> B["⚙️ /api/auth/login"]
+    B --> C{"✅ Credentials Valid?"}
+    C -- No --> D["❌ Return 401 Unauthorized"]
+    C -- Yes --> E["🔒 Compare Password (bcryptjs)"]
+    E --> F["🪪 Generate JWT"]
+    F --> G["🍪 Set HTTP-only Cookie"]
+    G --> H["📊 Redirect to Dashboard"]
+    H --> I["🛡️ Middleware Verifies Cookie on Every Request"]
+    I --> J{"Valid Session?"}
+    J -- Yes --> K["✅ Allow Access to Protected Route"]
+    J -- No --> L["🔁 Redirect to Login"]
+
+    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
+    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
+    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
+    classDef fail fill:#0f172a,stroke:#f43f5e,color:#fff
+    class A start
+    class B,E,F,G,H,I,K action
+    class C,J decision
+    class D,L fail
+```
+
+---
+
+## 📧 Email Alert Flow
+
+```mermaid
+flowchart TD
+    A(["🔄 Price Refresh Job Runs"]) --> B{"Current Price ≤ Target Price?"}
+    B -- No --> C["👀 Continue Monitoring"]
+    B -- Yes --> D["🔔 Create In-App Notification"]
+    D --> E{"📬 Duplicate Alert Already Sent?"}
+    E -- Yes --> C
+    E -- No --> F["✉️ Build Email via Nodemailer"]
+    F --> G{"🔐 SMTP Connection OK?"}
+    G -- No --> H["⚠️ Log Failure Safely<br/>(Price Refresh Continues)"]
+    G -- Yes --> I["📤 Send Email to Tracker Owner"]
+    I --> J["📥 User Email Inbox"]
+
+    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
+    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
+    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
+    classDef fail fill:#0f172a,stroke:#f43f5e,color:#fff
+    classDef success fill:#0f172a,stroke:#22d3ee,color:#fff
+    class A start
+    class C,D,F,I action
+    class B,E,G decision
+    class H fail
+    class J success
 ```
 
 ---
@@ -276,6 +431,57 @@ Pricelytix uses five main database models.
 
 **Notification** — Stores target price alerts.
 - id, trackerId, productId, message, type, isRead, createdAt
+
+### 🧾 Database Relationship Diagram
+
+```mermaid
+erDiagram
+    USER ||--o{ TRACKER : owns
+    PRODUCT ||--o{ TRACKER : "is tracked by"
+    PRODUCT ||--o{ PRICEHISTORY : has
+    TRACKER ||--o{ NOTIFICATION : triggers
+    PRODUCT ||--o{ NOTIFICATION : "relates to"
+
+    USER {
+        string id
+        string email
+        string name
+        string passwordHash
+        datetime createdAt
+    }
+    PRODUCT {
+        string id
+        string title
+        string url
+        string store
+        float currentPrice
+        string imageUrl
+        datetime createdAt
+    }
+    TRACKER {
+        string id
+        string userId
+        string productId
+        float targetPrice
+        boolean isActive
+        datetime createdAt
+    }
+    PRICEHISTORY {
+        string id
+        string productId
+        float price
+        datetime createdAt
+    }
+    NOTIFICATION {
+        string id
+        string trackerId
+        string productId
+        string message
+        string type
+        boolean isRead
+        datetime createdAt
+    }
+```
 
 ---
 
@@ -474,6 +680,26 @@ Local development uses SQLite, but production uses PostgreSQL. Production databa
 7. Create database tables using Prisma.
 8. Test signup, login, dashboard, and product tracking.
 
+### 🚀 Deployment Flow
+
+```mermaid
+flowchart LR
+    A["💻 Local Development"] --> B["📦 Push to GitHub"]
+    B --> C["▲ Import into Vercel"]
+    C --> D["🔑 Add Environment Variables"]
+    D --> E["🐘 Connect Neon PostgreSQL"]
+    E --> F["🏗️ Run Prisma Migrations"]
+    F --> G["🚀 Deploy Build"]
+    G --> H["🌐 Live Production App"]
+    H --> I["⏱️ Vercel Cron Triggers Refresh"]
+    I --> J["📧 Email Alerts Sent to Users"]
+
+    classDef step fill:#1e293b,stroke:#38bdf8,color:#fff
+    classDef live fill:#0f172a,stroke:#22c55e,color:#fff
+    class A,B,C,D,E,F,G step
+    class H,I,J live
+```
+
 ---
 
 ## ✅ Testing Checklist
@@ -497,5 +723,31 @@ Before final demo, verify:
 - [ ] Product details page loads
 - [ ] Price history chart renders
 - [ ] Protected routes redirect when logged out
+
+---
+
+## ⚠️ Limitations
+
+- Flipkart may block scraping in production
+- Amazon scraping may also be blocked occasionally
+- Real AI mode requires an API key
+- Email requires valid SMTP credentials
+- Vercel Hobby cron has scheduling limits
+- No mobile app yet
+- No WhatsApp alerts yet
+
+---
+
+## 🔮 Future Enhancements
+
+- WhatsApp alerts
+- Chrome extension
+- Product comparison
+- Mobile app
+- Admin dashboard
+- AI price prediction
+- Auto-buy assistant
+- Better scraping API integration
+- Subscription/payment system
 
 ---
