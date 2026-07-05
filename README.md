@@ -1,167 +1,557 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🛒 Pricelytix — AI-Powered Price Tracking Agent
 
-## Getting Started
+<p align="center">
+  <b>Track product prices, analyze price trends, receive smart alerts, and get AI-powered buy/wait recommendations.</b>
+</p>
 
-First, run the development server:
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
+  <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=for-the-badge&logo=postgresql" />
+  <img src="https://img.shields.io/badge/AI-Powered-06B6D4?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel" />
+</p>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 📌 Project Overview
+
+**Pricelytix** is an **AI-powered full-stack SaaS price tracking platform** that helps users monitor e-commerce product prices, store price history, receive notifications when prices reach their target, and get intelligent AI-based shopping recommendations.
+
+Users can create an account, add product URLs, set target prices, refresh prices, view price history charts, receive in-app notifications, and get email alerts when the product price becomes less than or equal to the target price.
+
+The project also includes an **AI Shopping Assistant** that can understand natural language shopping queries, extract product URLs and target prices, detect user intent, and provide buy/wait recommendations.
+
+---
+
+## 🎯 Problem Statement
+
+Online product prices change frequently across platforms like Amazon and Flipkart. A product may be expensive today and become cheaper during a sale or discount period. Users usually need to manually visit product pages again and again to check whether the price has dropped.
+
+This creates several problems:
+
+- Users may miss important price drops.
+- Users waste time checking the same product repeatedly.
+- Users do not have a simple way to track price history.
+- Users may not know whether to buy now or wait.
+- Users need personalized alerts when a product reaches their expected price.
+
+**Pricelytix solves this problem by automating product price tracking, storing price history, creating alerts, sending email notifications, and providing AI-powered shopping insights.**
+
+---
+
+## ✨ Key Features
+
+### 🔐 Authentication
+
+- User signup
+- User login
+- Secure logout
+- Password hashing using bcryptjs
+- JWT-based session handling
+- HTTP-only cookie authentication
+- Protected dashboard and private routes
+
+### 👤 User Data Isolation
+
+Each user has their own tracked products.
+
+- User A cannot view User B's products.
+- User A cannot edit User B's target price.
+- User A cannot delete User B's tracker.
+- User A cannot dismiss User B's notifications.
+
+This makes Pricelytix a true multi-user SaaS application.
+
+### 📦 Product Tracking
+
+- Add product URL
+- Set target price
+- Detect store automatically
+- Track product current price
+- Preserve old price if scraping fails
+- User-specific tracker creation
+- Safe handling for unsupported or blocked stores
+
+### 📊 Price History
+
+- Stores historical price records
+- Shows price trend chart
+- Displays lowest recorded price
+- Displays highest recorded price
+- Shows last checked time
+- Helps users understand price movement
+
+### 🔔 In-App Notifications
+
+A notification is created when:
+
+```txt
+currentPrice <= targetPrice
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Features:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Unread notification count
+- Product-level alert banners
+- Dismiss / mark notification as read
+- Duplicate notification prevention
+- Alert message when target price is reached
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 📧 Email Alerts
 
-## Learn More
+- Sends email when target price is reached
+- Uses Nodemailer with SMTP
+- Sends alert to tracker owner's email
+- Uses fallback email if needed
+- Handles SMTP failures safely
+- Prevents duplicate email alerts
+- Does not break price refresh if email fails
 
-To learn more about Next.js, take a look at the following resources:
+### 🤖 AI Shopping Assistant
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The AI Assistant can understand natural language requests such as:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Price Refresh System
-
-Pricelytix includes a reusable, automatic scheduled price refresh system that can periodically scrape and update prices for all tracked products.
-
-### Running a Manual Refresh
-
-To trigger a refresh for all products manually from the command line:
-
-```bash
-npm run refresh:all
+```
+Track this laptop if it drops below 55000:
+https://www.flipkart.com/example-product
 ```
 
-### Automation & Scheduling Options
+It extracts:
 
-You can automate this script to run periodically using scheduling tools:
+- Intent
+- Product URL
+- Target price
+- Summary
+- Recommendation
+- Next action
 
-#### 1. Linux/macOS Cron
-Add a cron job to run the script at your desired interval. For example, to run every hour:
-```bash
-0 * * * * cd /path/to/project && npm run refresh:all
+Example AI output:
+
+```json
+{
+  "intent": "TRACK_PRODUCT",
+  "productUrl": "https://www.flipkart.com/example-product",
+  "targetPrice": 55000,
+  "summary": "The user wants to track this product until it drops below ₹55,000.",
+  "recommendation": "Track this product and wait for a price drop.",
+  "nextAction": "Add this product to your tracker."
+}
 ```
 
-#### 2. Windows Task Scheduler
-Create a Basic Task that runs a program/script:
-- **Program/script**: `npm`
-- **Arguments**: `run refresh:all`
-- **Start in**: The absolute path of this project folder.
-- **Trigger**: Run daily, hourly, or at startup.
+### 🧠 AI Price Insights
 
-#### 3. Vercel Cron / Cloud Schedulers
-If deployed to a cloud provider like Vercel, you can configure a cron job to send a POST request to the API endpoint `/api/refresh-all` periodically.
+Pricelytix provides AI-style recommendations such as:
 
-## Email Notification System
+- BUY NOW
+- WAIT
+- WATCH CLOSELY
+- WAIT AND REFRESH LATER
 
-Pricelytix supports automatic email notifications sent whenever a tracked product's price drops to or below your target price.
+These insights are shown on:
 
-### Configuring SMTP Environment Variables
+- Dashboard (portfolio-level insight)
+- Product details page (product-level insight)
+- AI Assistant page
 
-Add the following environment variables to your `.env` file:
+The app supports a real OpenAI-compatible API mode and also includes a fallback rule-based AI mode for demo reliability.
+
+### ⏱ Scheduled Refresh
+
+- Refresh one product manually
+- Refresh all products manually
+- Local scheduled refresh script
+- Vercel Cron support
+- Secure cron endpoint using `CRON_SECRET`
+- Preserves last known price when scraping fails
+
+### 🌑 Enterprise Dark SaaS UI
+
+- Premium black and charcoal dashboard
+- Sidebar navigation
+- Responsive, compact product list cards
+- Dark input fields and form controls
+- Professional login/signup pages
+- Modern SaaS-style dashboard layout
+- Clean typography using the Inter font
+
+---
+
+## 🧩 Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js, React, TypeScript |
+| Styling | Tailwind CSS |
+| Backend | Next.js API Routes |
+| ORM | Prisma |
+| Local Database | SQLite |
+| Production Database | PostgreSQL |
+| Production DB Provider | Neon |
+| Authentication | bcryptjs, JWT, HTTP-only cookies |
+| Email | Nodemailer, Gmail SMTP |
+| AI Layer | OpenAI-compatible API + fallback AI |
+| Web Scraping | Cheerio, Playwright |
+| Charts | Recharts |
+| Deployment | Vercel |
+| Version Control | GitHub |
+
+---
+
+## 🏗 System Architecture
+
+```mermaid
+flowchart TD
+    A[User] --> B[Next.js Frontend]
+    B --> C[Next.js API Routes]
+    C --> D[Business Logic Layer]
+    D --> E[Prisma ORM]
+    E --> F[(Database)]
+
+    C --> G[Price Fetcher]
+    G --> H[Amazon / Flipkart Pages]
+
+    C --> I[AI Assistant Engine]
+    I --> J[LLM API or Rule-Based Fallback]
+
+    C --> K[Notification Engine]
+    K --> L[Email Service - Nodemailer]
+
+    L --> M[User Email Inbox]
+```
+
+---
+
+## 🔁 Product Tracking Workflow
+
+```mermaid
+flowchart TD
+    A[User Logs In] --> B[Add Product URL]
+    B --> C[Enter Target Price]
+    C --> D[Detect Store]
+    D --> E[Fetch Current Price]
+    E --> F[Save Product]
+    F --> G[Create Tracker]
+    G --> H[Show Product in Dashboard]
+    H --> I[Refresh Price]
+    I --> J[Save Price History]
+    J --> K{Current Price <= Target Price?}
+    K -- Yes --> L[Create Notification]
+    L --> M[Send Email Alert]
+    K -- No --> N[Continue Monitoring]
+```
+
+---
+
+## 🛒 Price Fetching Strategy
+
+**Amazon** — Price extraction uses Cheerio, which parses static HTML and extracts price from known selectors.
+
+**Flipkart** — Uses Playwright because Flipkart pages are more dynamic. Flipkart also has strong anti-bot protection, so Pricelytix follows a safety-first approach:
+
+- If a reliable price is found → save it
+- If the price is blocked or unreliable → return null
+- If null is returned → keep the last known price
+
+This prevents wrong prices from triggering false alerts.
+
+---
+
+## 🗄 Database Models
+
+Pricelytix uses five main database models.
+
+**User** — Stores user account details.
+- id, email, name, passwordHash, createdAt
+
+**Product** — Stores product information.
+- id, title, url, store, currentPrice, imageUrl, createdAt
+
+**Tracker** — Connects a user to a product with a target price.
+- id, userId, productId, targetPrice, isActive, createdAt
+
+**PriceHistory** — Stores historical price values.
+- id, productId, price, createdAt
+
+**Notification** — Stores target price alerts.
+- id, trackerId, productId, message, type, isRead, createdAt
+
+---
+
+## 📡 Important API Routes
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/api/auth/signup` | Create user account |
+| POST | `/api/auth/login` | Login user |
+| POST | `/api/auth/logout` | Logout user |
+| GET | `/api/auth/me` | Get current user |
+| POST | `/api/products` | Add product tracker |
+| PATCH | `/api/products/[id]/refresh` | Refresh one product |
+| DELETE | `/api/products/[id]` | Delete product |
+| PATCH | `/api/trackers/[id]` | Edit target price |
+| POST | `/api/refresh-all` | Refresh all products |
+| PATCH | `/api/notifications/[id]/read` | Mark notification as read |
+| POST | `/api/ai/assistant` | AI assistant response |
+
+---
+
+## 🧠 Prompt Engineering
+
+The AI assistant uses structured prompt engineering to produce predictable output. Instead of allowing the AI to return free-form text, the system asks it to return a strict JSON structure.
+
+Prompt style:
+
+```
+You are an AI shopping assistant for Pricelytix.
+Analyze the user's shopping request.
+Extract the intent, product URL, target price, summary, recommendation, and next action.
+Return only valid JSON.
+```
+
+Expected response format:
+
+```json
+{
+  "intent": "TRACK_PRODUCT",
+  "productUrl": "https://www.amazon.in/example",
+  "targetPrice": 50000,
+  "summary": "The user wants to track this product until it drops below ₹50,000.",
+  "recommendation": "Track this product and wait for the price drop.",
+  "nextAction": "Add this product to the tracker."
+}
+```
+
+This improves accuracy, consistency, predictability, frontend rendering, and overall user experience.
+
+---
+
+## 🧠 AI Fallback Mode
+
+If no AI API key is configured, the system still works using fallback AI.
+
+Fallback AI uses:
+
+- URL regex detection
+- Target price number extraction
+- Intent keyword matching
+- Rule-based recommendation generation
+
+Supported intents:
+
+- `TRACK_PRODUCT`
+- `PRICE_ADVICE`
+- `GENERAL_HELP`
+
+This ensures the AI assistant works even without paid API access.
+
+---
+
+## 🛡 Security Features
+
+- Passwords are hashed using bcryptjs
+- JWT is stored in an HTTP-only cookie
+- Protected routes using middleware
+- User data isolation using `userId`
+- API routes verify ownership before updates
+- Secrets stored in `.env` and Vercel environment variables
+- SMTP password and JWT secret are never exposed to the client
+- AI API key is used only on the server side
+
+---
+
+## 📦 Local Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Nithish-code17/pricelytix.git
+cd pricelytix
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment Variables
+
+Create a `.env` file in the project root:
 
 ```env
+DATABASE_URL="file:./dev.db"
+
+JWT_SECRET="your-local-secret-key"
+
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
-ALERT_EMAIL="recipient-email@gmail.com"
+SMTP_PASS="your-gmail-app-password"
+ALERT_EMAIL="your-alert-email@gmail.com"
+
+AI_API_KEY=""
+AI_BASE_URL="https://api.openai.com/v1"
+AI_MODEL=""
+
+CRON_SECRET="your-cron-secret"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-> **Note**: For Gmail, use an **App Password** generated from your Google Account settings (Security -> 2-Step Verification -> App Passwords). You can also use services like Mailtrap, Resend, or SendGrid.
->
-> **Safe Fallback**: If any of the SMTP variables are missing, the system will log a warning and continue normal price tracking without crashing or stopping execution.
+### 4. Generate Prisma Client
 
-## AI-Powered Price Tracking Agent Features
+```bash
+npx prisma generate
+```
 
-Pricelytix is equipped with a comprehensive AI layer that provides natural language query processing, smart portfolio insights, and dynamic price advice.
+### 5. Run Migrations
 
-### 1. AI Shopping Assistant (`/ai-assistant`)
-Users can input natural language requests (e.g., *“Track this iPhone if it drops below 60000: <product-url>”*) to extract target tracking specifications.
+```bash
+npx prisma migrate dev
+```
 
-### 2. AI Portfolio & Price Insights
-- **Dashboard**: Features an **AI Portfolio Insight** card summarizing target met percentages and close-to-target trackers with next-step recommendations.
-- **Product Details**: Displays an **AI Price Insight** card with purchase advice (BUY NOW, WATCH CLOSELY, or WAIT) and a parsing confidence rating.
+### 6. Start Development Server
 
-### 3. AI Mode Configuration
-Add the following optional variables to your `.env` file:
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🧪 Useful Scripts
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Build project |
+| `npm run start` | Start production server |
+| `npx prisma generate` | Generate Prisma client |
+| `npx prisma migrate dev` | Run local migrations |
+| `npm run refresh:all` | Refresh all product prices |
+| `npm run test:email` | Test email alert system |
+| `npm run test:flipkart` | Test Flipkart price fetching |
+
+---
+
+## 🚀 Production Deployment
+
+The project is deployed using GitHub, Vercel, and Neon PostgreSQL.
+
+### Production Environment Variables
+
+Add these variables in Vercel:
 
 ```env
-AI_API_KEY="your-openai-api-key"
+DATABASE_URL=""
+JWT_SECRET=""
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASS=""
+ALERT_EMAIL=""
+CRON_SECRET=""
+AI_API_KEY=""
 AI_BASE_URL="https://api.openai.com/v1"
-AI_MODEL="gpt-4o-mini"
+AI_MODEL=""
+NEXT_PUBLIC_APP_URL=""
 ```
 
-> **Zero-Dependency Fallback**: If `AI_API_KEY` is not provided or the LLM call fails, the system automatically defaults to a regex/keyword-based parsing system. This ensures the shopping assistant works reliably during local developer presentations and offline testing.
+### Production Database
 
-## Vercel Production Deployment Guide
+Local development uses SQLite, but production uses PostgreSQL. Production database provider: **Neon PostgreSQL**.
 
-This project is configured to run on **SQLite** for local development and **PostgreSQL** (e.g. Neon/Supabase) in production on **Vercel**. 
+### Deployment Steps
 
-### 1. Database Configuration Switching
-Our automated `postinstall` setup detects the connection format from your `DATABASE_URL` during build:
-- If a PostgreSQL connection string is found, it swaps `prisma/schema.prisma` with the PostgreSQL definition template before compiling the client.
-- Otherwise, it retains the default local SQLite schema.
+1. Push code to GitHub.
+2. Create a Neon PostgreSQL database.
+3. Copy the Neon PostgreSQL connection string.
+4. Import the GitHub repo into Vercel.
+5. Add environment variables in Vercel.
+6. Deploy the project.
+7. Create database tables using Prisma.
+8. Test signup, login, dashboard, and product tracking.
 
-### 2. Environment Variables Checklist in Vercel
-In **Vercel Project Settings → Environment Variables**, you must add:
+---
 
-| Variable | Description | Example / Required |
-| --- | --- | --- |
-| `DATABASE_URL` | Production PostgreSQL Connection URI | `postgresql://user:pass@host/db?sslmode=require` |
-| `JWT_SECRET` | Secret key used for authenticating users | A secure 32-character string |
-| `NEXT_PUBLIC_APP_URL` | Base canonical domain of your deployment | `https://your-app.vercel.app` |
-| `SMTP_HOST` | SMTP server address | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_USER` | SMTP username | `your-email@gmail.com` |
-| `SMTP_PASS` | SMTP password (App Password for Gmail) | `xxxx-xxxx-xxxx-xxxx` |
-| `ALERT_EMAIL` | Fallback alert destination address | `recipient-email@domain.com` |
-| `CRON_SECRET` | Security key for automated hourly refresh triggers | Secure random string (provided by Vercel) |
-| `AI_API_KEY` | OpenAI or compatible API key (Optional) | `sk-...` |
-| `AI_BASE_URL` | LLM gateway address (Optional) | `https://api.openai.com/v1` |
-| `AI_MODEL` | LLM model model name (Optional) | `gpt-4o-mini` |
+## ✅ Testing Checklist
 
-### 3. Steps to Deploy to Vercel
+Before final demo, verify:
 
-1. **Push code to GitHub**: Create a repository and push your local codebase.
-2. **Provision PostgreSQL Database**:
-   - Create a free PostgreSQL instance on [Neon](https://neon.tech) or [Supabase](https://supabase.com).
-   - Copy the connection URI string.
-3. **Link to Vercel**:
-   - Create a new project in Vercel pointing to your GitHub repository.
-   - Insert all the environment variables from the checklist above.
-4. **Deploy**: Click Deploy. The `postinstall` command will automatically run the schema adapter and compile the Prisma client.
-5. **Run Database Migrations**:
-   - Install the Vercel CLI locally (`npm i -g vercel`) and login.
-   - Run the production schema creation command from your terminal:
-     ```bash
-     npx prisma db push
-     # Or (if using standard migrations):
-     npx prisma migrate deploy
-     ```
-6. **Trigger Automated Scraper**:
-   - The `/api/refresh-all` route is configured inside `vercel.json` as an hourly cron task.
-   - Vercel automatically hits this path and passes the correct `CRON_SECRET` headers to trigger secure product updates.
+- [ ] Signup works
+- [ ] Login works
+- [ ] Logout works
+- [ ] Dashboard loads
+- [ ] Add product works
+- [ ] Product refresh works
+- [ ] Refresh all works
+- [ ] Edit target price works
+- [ ] Delete product works
+- [ ] Notification appears
+- [ ] Dismiss notification works
+- [ ] Email test works
+- [ ] AI assistant works
+- [ ] AI fallback mode works
+- [ ] Product details page loads
+- [ ] Price history chart renders
+- [ ] Protected routes redirect when logged out
 
-### 4. E-Commerce Scraper Notes
-- **Amazon**: Product detail scraping works depending on the server IP/proxy configurations.
-- **Flipkart**: Flipkart may block browserless serverless IP ranges. If Flipkart requests fail, the app **safely skips database writes and retains the last-known product prices** to prevent data degradation.
+---
 
+## ⚠️ Limitations
 
+- Flipkart may block scraping in production
+- Amazon scraping may also be blocked occasionally
+- Real AI mode requires an API key
+- Email requires valid SMTP credentials
+- Vercel Hobby cron has scheduling limits
+- No mobile app yet
+- No WhatsApp alerts yet
 
+---
 
+## 🔮 Future Enhancements
+
+- WhatsApp alerts
+- Chrome extension
+- Product comparison
+- Mobile app
+- Admin dashboard
+- AI price prediction
+- Auto-buy assistant
+- Better scraping API integration
+- Subscription/payment system
+
+---
+
+## 🎤 Presentation Summary
+
+Pricelytix is an AI-powered price tracking SaaS application. It allows users to sign up, add product URLs, set target prices, monitor product price history, and receive notifications and email alerts when the product reaches the target price. It also includes an AI assistant that understands natural language shopping queries, extracts product URLs and target prices, and gives buy-or-wait recommendations.
+
+The project uses Next.js, React, TypeScript, Tailwind CSS, Prisma, PostgreSQL, Nodemailer, Playwright, Cheerio, and an OpenAI-compatible AI layer. It is deployed on Vercel with Neon PostgreSQL.
+
+---
+
+## 👨‍💻 Author
+
+**M. Nithish Sarwin**
+GitHub: [Nithish-code17](https://github.com/Nithish-code17)
+
+---
+
+## ⭐ Final Note
+
+Pricelytix is built as a practical AI-powered SaaS product that combines:
+
+- Full-stack development
+- Authentication
+- Database design
+- Web scraping
+- AI assistance
+- Email automation
+- Data visualization
+- Cloud deployment
+
+It demonstrates how AI and automation can be used to solve a real-world online shopping problem.
