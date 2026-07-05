@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  trackers     Tracker[]
+  createdAt    DateTime  @default(now())
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  title        String
+  url          String         @unique
+  store        String?
+  currentPrice Float?
+  imageUrl     String?
+  trackers     Tracker[]
+  priceHistory PriceHistory[]
+  notifications Notification[]
+  createdAt    DateTime       @default(now())
+}
+
+model Tracker {
+  id          String   @id @default(cuid())
+  userId      String?
+  productId   String
+  targetPrice Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  notifications Notification[]
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  price     Float
+  createdAt DateTime @default(now())
+
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  trackerId   String
+  productId   String
+  message     String
+  type        String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  tracker     Tracker  @relation(fields: [trackerId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+}
