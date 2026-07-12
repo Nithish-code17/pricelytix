@@ -1,36 +1,5 @@
 import * as cheerio from "cheerio";
 
-async function launchBrowser() {
-  const isVercel = process.env.VERCEL === "1";
-
-  if (isVercel) {
-    const [{ chromium: playwrightChromium }, chromiumModule] =
-      await Promise.all([
-        import("playwright-core"),
-        import("@sparticuz/chromium"),
-      ]);
-
-    const chromium = chromiumModule.default;
-
-    return playwrightChromium.launch({
-      args: [
-        ...chromium.args,
-        "--disable-http2",
-        "--disable-gpu",
-        "--no-sandbox",
-      ],
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-  }
-
-  const { chromium } = await import("playwright");
-
-  return chromium.launch({
-    headless: true,
-  });
-}
-
 function parsePrice(text: string): number | null {
   if (!text) return null;
 
@@ -73,107 +42,202 @@ async function fetchHtml(url: string): Promise<string> {
   return await response.text();
 }
 
-async function fetchAmazonPriceDynamic(url: string): Promise<number | null> {
-  const browser = await launchBrowser();
-
-  try {
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      locale: "en-IN",
-      viewport: { width: 1440, height: 900 },
-      ignoreHTTPSErrors: true,
-    });
-
-    const page = await context.newPage();
-
-    // Block heavy resources
-    await page.route("**/*", (route) => {
-      const type = route.request().resourceType();
-      if (type === "image" || type === "font" || type === "media") {
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
-
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-
-    await page.waitForTimeout(5000);
-
-    const selectors = [
-      ".a-price .a-offscreen",
-      ".aok-offscreen",
-      "#priceblock_ourprice",
-      "#priceblock_dealprice",
-      "#priceblock_saleprice",
-    ];
-
-    for (const selector of selectors) {
-      try {
-        const text = await page.locator(selector).first().textContent({ timeout: 2000 });
-        const price = parsePrice(text || "");
-        if (isReasonablePrice(price)) {
-          console.log(`[AMAZON DYNAMIC] Found price via selector ${selector}: ₹${price}`);
-          await context.close();
-          return price;
-        }
-      } catch {}
-    }
-
-    await context.close();
-    return null;
-  } catch (error) {
-    console.error("[AMAZON DYNAMIC] Error scraping dynamic price:", error);
-    return null;
-  } finally {
-    await browser.close();
-  }
-}
-
-async function fetchAmazonPrice(url: string): Promise<number | null> {
-  let html = "";
-  try {
-    html = await fetchHtml(url);
-  } catch (error) {
-    console.warn("AMAZON STATIC FETCH FAILED:", error instanceof Error ? error.message : error);
-    return await fetchAmazonPriceDynamic(url);
-  }
-
-  const $ = cheerio.load(html);
-
-  const selectors = [
-    ".a-price .a-offscreen",
-    ".aok-offscreen",
-    "#priceblock_ourprice",
-    "#priceblock_dealprice",
-    "#priceblock_saleprice",
-  ];
-
-  for (const selector of selectors) {
-    const text = $(selector).first().text().trim();
-    const price = parsePrice(text);
-
-    if (isReasonablePrice(price)) {
-      return price;
-    }
-  }
-
-  console.log("Amazon static selectors did not find a price. Trying dynamic browser fetch...");
-  return await fetchAmazonPriceDynamic(url);
-}
-
 function isValidFlipkartPriceText(text: string): boolean {
   const lower = text.toLowerCase();
   const blacklisted = ["emi", "off", "%", "save", "discount", "exchange", "coupon"];
   return !blacklisted.some((word) => lower.includes(word));
 }
 
-async function fetchFlipkartPrice(url: string): Promise<number | null> {
-  const browser = await launchBrowser();
+async function fetchDynamicPriceWithPuppeteer(
+  url: string,
+  store: string,
+  selectors: string[]
+): Promise<number | null> {
+  console.log(`[PUPPETEER] Scraping dynamically on Vercel: ${url}`);
+  const puppeteer = await import("puppeteer-core");
+  const chromiumModule = await import("@sparticuz/chromium");
+  const chromium = chromiumModule.default;
+
+  const browser = await puppeteer.default.launch({
+    args: [
+      ...chromium.args,
+      "--disable-http2",
+      "--disable-gpu",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+    ],
+    executablePath: await chromium.executablePath(),
+    headless: true,
+    defaultViewport: {
+      width: 1440,
+      height: 900,
+    },
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    );
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "en-IN,en;q=0.9",
+    });
+
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      const type = req.resourceType();
+      if (type === "image" || type === "font" || type === "media") {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    let foundPrice: number | null = null;
+
+    // 1. Try structured meta tags
+    const metaSelectors = [
+      'meta[itemprop="price"]',
+      'meta[property="product:price:amount"]',
+      'meta[property="og:price:amount"]',
+    ];
+
+    for (const sel of metaSelectors) {
+      try {
+        const content = await page.evaluate((s) => {
+          const el = document.querySelector(s);
+          return el ? el.getAttribute("content") : null;
+        }, sel);
+
+        if (content) {
+          const price = parsePrice(content);
+          if (isReasonablePrice(price)) {
+            foundPrice = price;
+            console.log(`[PUPPETEER] Found price via meta tag ${sel}: ₹${price}`);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Try JSON-LD script
+    if (foundPrice === null) {
+      try {
+        const scriptTexts = await page.evaluate(() => {
+          const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+          return scripts.map((s) => s.textContent || "");
+        });
+
+        const candidates: number[] = [];
+        const addCandidate = (text: string) => {
+          if (!text) return;
+          const cleaned = text.toLowerCase();
+          const blacklisted = ["emi", "off", "%", "save", "discount", "exchange", "coupon"];
+          if (blacklisted.some((word) => cleaned.includes(word))) return;
+          const parsed = parsePrice(text);
+          if (parsed !== null && isReasonablePrice(parsed)) {
+            candidates.push(parsed);
+          }
+        };
+
+        for (const content of scriptTexts) {
+          if (content) {
+            try {
+              const json = JSON.parse(content);
+              const searchJsonLd = (obj: any) => {
+                if (!obj || typeof obj !== "object") return;
+                if (obj.offers) {
+                  if (Array.isArray(obj.offers)) {
+                    for (const off of obj.offers) {
+                      if (off.price) addCandidate(String(off.price));
+                    }
+                  } else if (obj.offers.price) {
+                    addCandidate(String(obj.offers.price));
+                  }
+                }
+                if (obj.price) {
+                  addCandidate(String(obj.price));
+                }
+                for (const key of Object.keys(obj)) {
+                  searchJsonLd(obj[key]);
+                }
+              };
+              searchJsonLd(json);
+            } catch {}
+          }
+        }
+        if (candidates.length > 0) {
+          foundPrice = candidates[0];
+          console.log(`[PUPPETEER] Found price via JSON-LD: ₹${foundPrice}`);
+        }
+      } catch (err) {
+        console.error("[PUPPETEER] JSON-LD extraction failed:", err);
+      }
+    }
+
+    // 3. Try selectors in priority order
+    if (foundPrice === null) {
+      for (const selector of selectors) {
+        try {
+          const text = await page.evaluate((sel) => {
+            const el = document.querySelector(sel);
+            return el ? el.textContent : null;
+          }, selector);
+
+          if (text) {
+            const price = parsePrice(text);
+            if (isReasonablePrice(price)) {
+              foundPrice = price;
+              console.log(`[PUPPETEER] Found price via selector ${selector}: ₹${price}`);
+              break;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // 4. Fallback to body text rupee regex
+    if (foundPrice === null) {
+      try {
+        const bodyText = await page.evaluate(() => document.body.innerText);
+        const rupeeMatches = bodyText.match(/₹\s?[\d,]+/g);
+        if (rupeeMatches) {
+          for (const match of rupeeMatches) {
+            const price = parsePrice(match);
+            if (isReasonablePrice(price)) {
+              foundPrice = price;
+              console.log(`[PUPPETEER] Fallback found price in body text: ₹${price}`);
+              break;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return foundPrice;
+  } catch (error) {
+    console.error("[PUPPETEER] Error scraping dynamic price:", error);
+    return null;
+  } finally {
+    await browser.close();
+  }
+}
+
+async function fetchDynamicPriceWithPlaywright(
+  url: string,
+  store: string,
+  selectors: string[]
+): Promise<number | null> {
+  console.log(`[PLAYWRIGHT] Scraping dynamically locally: ${url}`);
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
 
   try {
     const context = await browser.newContext({
@@ -203,16 +267,7 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
 
     await page.waitForTimeout(5000);
 
-    const candidates: Array<{ source: string; raw: string; price: number }> = [];
-
-    const addCandidate = (source: string, rawText: string) => {
-      if (!rawText) return;
-      if (!isValidFlipkartPriceText(rawText)) return;
-      const parsed = parsePrice(rawText);
-      if (parsed !== null && parsed >= 50 && parsed <= 500000) {
-        candidates.push({ source, raw: rawText.trim(), price: parsed });
-      }
-    };
+    let foundPrice: number | null = null;
 
     // 1. Try structured meta tags
     const metaSelectors = [
@@ -225,110 +280,170 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
       try {
         const content = await page.locator(sel).first().getAttribute("content", { timeout: 2000 });
         if (content) {
-          addCandidate(`Meta ${sel}`, content);
+          const price = parsePrice(content);
+          if (isReasonablePrice(price)) {
+            foundPrice = price;
+            console.log(`[PLAYWRIGHT] Found price via meta tag ${sel}: ₹${price}`);
+            break;
+          }
         }
       } catch {}
     }
 
     // 2. Try JSON-LD script
-    try {
-      const scripts = await page.locator('script[type="application/ld+json"]').all();
-      for (const script of scripts) {
-        const content = await script.textContent();
-        if (content) {
-          try {
-            const json = JSON.parse(content);
-            const searchJsonLd = (obj: any) => {
-              if (!obj || typeof obj !== "object") return;
-              if (obj.offers) {
-                if (Array.isArray(obj.offers)) {
-                  for (const off of obj.offers) {
-                    if (off.price) addCandidate("JSON-LD (offers.price)", String(off.price));
-                  }
-                } else if (obj.offers.price) {
-                  addCandidate("JSON-LD (offers.price)", String(obj.offers.price));
-                }
-              }
-              if (obj.price) {
-                addCandidate("JSON-LD (price)", String(obj.price));
-              }
-              for (const key of Object.keys(obj)) {
-                searchJsonLd(obj[key]);
-              }
-            };
-            searchJsonLd(json);
-          } catch {}
-        }
-      }
-    } catch {}
-
-    // 3. Try selectors in priority order
-    const selectors = [
-      "div.Nx9bqj.CxhGGd",
-      "div.Nx9bqj",
-      "div._30jeq3._16Jk6d",
-      "div._30jeq3",
-      "[class*='Nx9bqj']",
-      "[class*='_30jeq3']",
-    ];
-
-    for (const selector of selectors) {
+    if (foundPrice === null) {
       try {
-        const elements = await page.locator(selector).all();
-        for (const el of elements) {
-          const text = await el.textContent({ timeout: 2000 });
-          if (text) {
-            addCandidate(selector, text);
+        const scripts = await page.locator('script[type="application/ld+json"]').all();
+        const candidates: number[] = [];
+        const addCandidate = (text: string) => {
+          if (!text) return;
+          const cleaned = text.toLowerCase();
+          const blacklisted = ["emi", "off", "%", "save", "discount", "exchange", "coupon"];
+          if (blacklisted.some((word) => cleaned.includes(word))) return;
+          const parsed = parsePrice(text);
+          if (parsed !== null && isReasonablePrice(parsed)) {
+            candidates.push(parsed);
+          }
+        };
+
+        for (const script of scripts) {
+          const content = await script.textContent();
+          if (content) {
+            try {
+              const json = JSON.parse(content);
+              const searchJsonLd = (obj: any) => {
+                if (!obj || typeof obj !== "object") return;
+                if (obj.offers) {
+                  if (Array.isArray(obj.offers)) {
+                    for (const off of obj.offers) {
+                      if (off.price) addCandidate(String(off.price));
+                    }
+                  } else if (obj.offers.price) {
+                    addCandidate(String(obj.offers.price));
+                  }
+                }
+                if (obj.price) {
+                  addCandidate(String(obj.price));
+                }
+                for (const key of Object.keys(obj)) {
+                  searchJsonLd(obj[key]);
+                }
+              };
+              searchJsonLd(json);
+            } catch {}
+          }
+        }
+        if (candidates.length > 0) {
+          foundPrice = candidates[0];
+          console.log(`[PLAYWRIGHT] Found price via JSON-LD: ₹${foundPrice}`);
+        }
+      } catch {}
+    }
+
+    // 3. Try selectors
+    if (foundPrice === null) {
+      for (const selector of selectors) {
+        try {
+          const elements = await page.locator(selector).all();
+          for (const el of elements) {
+            const text = await el.textContent({ timeout: 2000 });
+            if (text) {
+              const price = parsePrice(text);
+              if (isReasonablePrice(price)) {
+                foundPrice = price;
+                console.log(`[PLAYWRIGHT] Found price via selector ${selector}: ₹${price}`);
+                break;
+              }
+            }
+          }
+          if (foundPrice !== null) break;
+        } catch {}
+      }
+    }
+
+    // 4. Fallback to body text rupee regex
+    if (foundPrice === null) {
+      try {
+        const bodyText = await page.locator("body").innerText();
+        const rupeeMatches = bodyText.match(/₹\s?[\d,]+/g);
+        if (rupeeMatches) {
+          for (const match of rupeeMatches) {
+            const price = parsePrice(match);
+            if (isReasonablePrice(price)) {
+              foundPrice = price;
+              console.log(`[PLAYWRIGHT] Fallback found price in body text: ₹${match}`);
+              break;
+            }
           }
         }
       } catch {}
     }
 
     await context.close();
-
-    if (candidates.length === 0) {
-      console.log("[FLIPKART PRICE] No reliable price found");
-      return null;
-    }
-
-    // Obvious EMI protection: Reject prices that are extremely low relative to the highest candidate
-    const maxPrice = Math.max(...candidates.map((c) => c.price));
-    const filteredCandidates = candidates.filter((c) => {
-      if (maxPrice > 10000 && c.price < maxPrice * 0.15) {
-        return false; // likely an EMI or small fee
-      }
-      return true;
-    });
-
-    if (filteredCandidates.length === 0) {
-      console.log("[FLIPKART PRICE] No reliable price found");
-      return null;
-    }
-
-    // Sort by source priority
-    const getSourceScore = (source: string): number => {
-      if (source.startsWith("Meta") || source.startsWith("JSON-LD")) return 100;
-      const index = selectors.indexOf(source);
-      if (index !== -1) {
-        return 90 - index;
-      }
-      return 10;
-    };
-
-    filteredCandidates.sort((a, b) => getSourceScore(b.source) - getSourceScore(a.source));
-
-    const bestCandidate = filteredCandidates[0];
-    console.log(
-      `[FLIPKART PRICE] Source: ${bestCandidate.source} | Raw: ${bestCandidate.raw} | Parsed: ${bestCandidate.price}`
-    );
-
-    return bestCandidate.price;
+    return foundPrice;
   } catch (error) {
-    console.error("[FLIPKART PRICE] Error scraping price:", error);
+    console.error("[PLAYWRIGHT] Error scraping dynamic price:", error);
     return null;
   } finally {
     await browser.close();
   }
+}
+
+async function fetchDynamicPrice(
+  url: string,
+  store: string,
+  selectors: string[]
+): Promise<number | null> {
+  const isVercel = process.env.VERCEL === "1";
+  if (isVercel) {
+    return await fetchDynamicPriceWithPuppeteer(url, store, selectors);
+  } else {
+    return await fetchDynamicPriceWithPlaywright(url, store, selectors);
+  }
+}
+
+async function fetchAmazonPrice(url: string): Promise<number | null> {
+  const selectors = [
+    ".a-price .a-offscreen",
+    ".aok-offscreen",
+    "#priceblock_ourprice",
+    "#priceblock_dealprice",
+    "#priceblock_saleprice",
+  ];
+
+  let html = "";
+  try {
+    html = await fetchHtml(url);
+  } catch (error) {
+    console.warn("AMAZON STATIC FETCH FAILED:", error instanceof Error ? error.message : error);
+    return await fetchDynamicPrice(url, "Amazon", selectors);
+  }
+
+  const $ = cheerio.load(html);
+
+  for (const selector of selectors) {
+    const text = $(selector).first().text().trim();
+    const price = parsePrice(text);
+
+    if (isReasonablePrice(price)) {
+      return price;
+    }
+  }
+
+  console.log("Amazon static selectors did not find a price. Trying dynamic browser fetch...");
+  return await fetchDynamicPrice(url, "Amazon", selectors);
+}
+
+async function fetchFlipkartPrice(url: string): Promise<number | null> {
+  const selectors = [
+    "div.Nx9bqj.CxhGGd",
+    "div.Nx9bqj",
+    "div._30jeq3._16Jk6d",
+    "div._30jeq3",
+    "[class*='Nx9bqj']",
+    "[class*='_30jeq3']",
+  ];
+  return await fetchDynamicPrice(url, "Flipkart", selectors);
 }
 
 export async function fetchProductPrice(
@@ -344,7 +459,6 @@ export async function fetchProductPrice(
       return await fetchFlipkartPrice(url);
     }
 
-    // Myntra and Ajio are currently blocked / unstable
     return null;
   } catch (error) {
     console.error("PRICE FETCH ERROR:", error);
