@@ -1,5 +1,35 @@
 import * as cheerio from "cheerio";
-import { chromium } from "playwright";
+
+async function launchBrowser() {
+  const isVercel = process.env.VERCEL === "1";
+
+  if (isVercel) {
+    const [{ chromium: playwrightChromium }, chromiumModule] =
+      await Promise.all([
+        import("playwright-core"),
+        import("@sparticuz/chromium"),
+      ]);
+
+    const chromium = chromiumModule.default;
+
+    return playwrightChromium.launch({
+      args: [
+        ...chromium.args,
+        "--disable-http2",
+        "--disable-gpu",
+        "--no-sandbox",
+      ],
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
+
+  const { chromium } = await import("playwright");
+
+  return chromium.launch({
+    headless: true,
+  });
+}
 
 function parsePrice(text: string): number | null {
   if (!text) return null;
@@ -43,8 +73,76 @@ async function fetchHtml(url: string): Promise<string> {
   return await response.text();
 }
 
+async function fetchAmazonPriceDynamic(url: string): Promise<number | null> {
+  const browser = await launchBrowser();
+
+  try {
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      locale: "en-IN",
+      viewport: { width: 1440, height: 900 },
+      ignoreHTTPSErrors: true,
+    });
+
+    const page = await context.newPage();
+
+    // Block heavy resources
+    await page.route("**/*", (route) => {
+      const type = route.request().resourceType();
+      if (type === "image" || type === "font" || type === "media") {
+        route.abort();
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+
+    await page.waitForTimeout(5000);
+
+    const selectors = [
+      ".a-price .a-offscreen",
+      ".aok-offscreen",
+      "#priceblock_ourprice",
+      "#priceblock_dealprice",
+      "#priceblock_saleprice",
+    ];
+
+    for (const selector of selectors) {
+      try {
+        const text = await page.locator(selector).first().textContent({ timeout: 2000 });
+        const price = parsePrice(text || "");
+        if (isReasonablePrice(price)) {
+          console.log(`[AMAZON DYNAMIC] Found price via selector ${selector}: ₹${price}`);
+          await context.close();
+          return price;
+        }
+      } catch {}
+    }
+
+    await context.close();
+    return null;
+  } catch (error) {
+    console.error("[AMAZON DYNAMIC] Error scraping dynamic price:", error);
+    return null;
+  } finally {
+    await browser.close();
+  }
+}
+
 async function fetchAmazonPrice(url: string): Promise<number | null> {
-  const html = await fetchHtml(url);
+  let html = "";
+  try {
+    html = await fetchHtml(url);
+  } catch (error) {
+    console.warn("AMAZON STATIC FETCH FAILED:", error instanceof Error ? error.message : error);
+    return await fetchAmazonPriceDynamic(url);
+  }
+
   const $ = cheerio.load(html);
 
   const selectors = [
@@ -64,7 +162,8 @@ async function fetchAmazonPrice(url: string): Promise<number | null> {
     }
   }
 
-  return null;
+  console.log("Amazon static selectors did not find a price. Trying dynamic browser fetch...");
+  return await fetchAmazonPriceDynamic(url);
 }
 
 function isValidFlipkartPriceText(text: string): boolean {
@@ -74,10 +173,7 @@ function isValidFlipkartPriceText(text: string): boolean {
 }
 
 async function fetchFlipkartPrice(url: string): Promise<number | null> {
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--disable-http2"],
-  });
+  const browser = await launchBrowser();
 
   try {
     const context = await browser.newContext({
@@ -85,16 +181,27 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       locale: "en-IN",
       viewport: { width: 1440, height: 900 },
+      ignoreHTTPSErrors: true,
     });
 
     const page = await context.newPage();
 
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 25000,
+    // Block heavy resources
+    await page.route("**/*", (route) => {
+      const type = route.request().resourceType();
+      if (type === "image" || type === "font" || type === "media") {
+        route.abort();
+      } else {
+        route.continue();
+      }
     });
 
-    await page.waitForTimeout(3000);
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+
+    await page.waitForTimeout(5000);
 
     const candidates: Array<{ source: string; raw: string; price: number }> = [];
 
@@ -161,8 +268,8 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
       "div.Nx9bqj",
       "div._30jeq3._16Jk6d",
       "div._30jeq3",
-      '[class*="Nx9bqj"][class*="CxhGGd"]',
-      '[class*="_30jeq3"]',
+      "[class*='Nx9bqj']",
+      "[class*='_30jeq3']",
     ];
 
     for (const selector of selectors) {
