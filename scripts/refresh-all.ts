@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
-import { refreshProducts } from "../src/lib/refresh-products";
+import { refreshAllTrackedProducts } from "../src/lib/refresh-products";
 
 async function main() {
   console.log("=========================================");
@@ -9,7 +9,7 @@ async function main() {
   console.log("=========================================");
 
   try {
-    const summary = await refreshProducts();
+    const summary = await refreshAllTrackedProducts();
 
     console.log("\n=========================================");
     console.log("REFRESH COMPLETED SUCCESSFULLY");
@@ -17,7 +17,7 @@ async function main() {
     console.log(`Total Products Tracked:  ${summary.totalProducts}`);
     console.log(`Successfully Updated:    ${summary.updatedCount}`);
     console.log(`Skipped / No Change:     ${summary.skippedCount}`);
-    console.log(`Notifications Created:   ${summary.notificationCount}`);
+    console.log(`Failed / Errors:         ${summary.failedCount}`);
     console.log("=========================================\n");
 
     process.exit(0);

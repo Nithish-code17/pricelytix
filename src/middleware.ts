@@ -28,11 +28,12 @@ export async function middleware(request: NextRequest) {
 
   // Protect private dashboard routes
   const isProtectedRoute =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/add-product") ||
-    pathname.startsWith("/products") ||
-    pathname.startsWith("/ai-assistant") ||
-    pathname.startsWith("/api/ai/assistant");
+    (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/add-product") ||
+      pathname.startsWith("/products") ||
+      pathname.startsWith("/ai-assistant") ||
+      pathname.startsWith("/api/ai/assistant")) &&
+    !pathname.startsWith("/api/cron/refresh-prices");
 
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url);

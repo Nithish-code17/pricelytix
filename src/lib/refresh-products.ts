@@ -1,120 +1,137 @@
-import { sendPriceAlertEmail } from "./email";
-import { fetchProductPrice } from "./price-fetcher";
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
+import { fetchProductPrice } from "@/lib/price-fetcher";
 
-export interface RefreshSummary {
+export type RefreshProductResult = {
+  productId: string;
+  title: string;
+  status: "updated" | "skipped" | "failed";
+  currentPrice?: number;
+  error?: string;
+};
+
+export type RefreshSummary = {
   totalProducts: number;
   updatedCount: number;
   skippedCount: number;
-  notificationCount: number;
-}
+  failedCount: number;
+  startedAt: string;
+  completedAt: string;
+  results: RefreshProductResult[];
+};
 
-export interface RefreshProductsOptions {
-  userId?: string;
-}
-
-export async function refreshProducts(
-  options: RefreshProductsOptions = {}
-): Promise<RefreshSummary> {
-  const { userId } = options;
+export async function refreshAllTrackedProducts(): Promise<RefreshSummary> {
+  const startedAt = new Date().toISOString();
 
   const products = await prisma.product.findMany({
-    where: userId
-      ? {
-          trackers: {
-            some: {
-              userId,
-            },
-          },
-        }
-      : undefined,
+    where: {
+      trackers: {
+        some: {
+          isActive: true,
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      url: true,
+      store: true,
+    },
   });
 
   let updatedCount = 0;
   let skippedCount = 0;
-  let notificationCount = 0;
+  let failedCount = 0;
 
+  const results: RefreshProductResult[] = [];
+
+  // Process sequentially to avoid opening many scrapers at the same time.
   for (const product of products) {
     try {
+      console.log(`Refreshing product: ${product.title}`);
+
       const currentPrice = await fetchProductPrice(
         product.url,
-        product.store || "Unknown"
+        product.store ?? "Unknown"
       );
 
       if (currentPrice === null) {
         skippedCount++;
+
+        results.push({
+          productId: product.id,
+          title: product.title,
+          status: "skipped",
+          error: "Current price could not be fetched",
+        });
+
         continue;
       }
 
       await prisma.product.update({
-        where: { id: product.id },
+        where: {
+          id: product.id,
+        },
         data: {
           currentPrice,
         },
       });
 
-      await prisma.priceHistory.create({
-        data: {
-          productId: product.id,
-          price: currentPrice,
-        },
-      });
+      /*
+       * Protect against duplicate cron calls creating multiple history
+       * records within a very short period.
+       */
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
-      // Check active trackers and create notifications
-      const trackers = await prisma.tracker.findMany({
+      const recentHistory = await prisma.priceHistory.findFirst({
         where: {
           productId: product.id,
-          isActive: true,
-          ...(userId ? { userId } : {}),
-        },
-        include: {
-          user: {
-            select: {
-              email: true,
-            },
+          createdAt: {
+            gte: tenMinutesAgo,
           },
+        },
+        orderBy: {
+          createdAt: "desc",
         },
       });
 
-      for (const tracker of trackers) {
-        if (currentPrice <= tracker.targetPrice) {
-          const existingNotification = await prisma.notification.findFirst({
-            where: {
-              trackerId: tracker.id,
-              productId: product.id,
-              isRead: false,
-            },
-          });
-
-          if (!existingNotification) {
-            await prisma.notification.create({
-              data: {
-                trackerId: tracker.id,
-                productId: product.id,
-                message: `Target reached! Current price is ₹${currentPrice}, which is below your target of ₹${tracker.targetPrice}.`,
-                type: "TARGET_REACHED",
-                isRead: false,
-              },
-            });
-            notificationCount++;
-
-            // Trigger email alert asynchronously
-            await sendPriceAlertEmail({
-              title: product.title,
-              url: product.url,
-              currentPrice,
-              targetPrice: tracker.targetPrice,
-              store: product.store || "Unknown",
-              userEmail: tracker.user?.email,
-            });
-          }
-        }
+      if (!recentHistory) {
+        await prisma.priceHistory.create({
+          data: {
+            productId: product.id,
+            price: currentPrice,
+          },
+        });
       }
 
       updatedCount++;
+
+      results.push({
+        productId: product.id,
+        title: product.title,
+        status: "updated",
+        currentPrice,
+      });
+
+      console.log(
+        `Successfully refreshed ${product.title}: ₹${currentPrice}`
+      );
     } catch (error) {
-      console.error(`FAILED TO REFRESH PRODUCT: ${product.id}`, error);
-      skippedCount++;
+      failedCount++;
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
+      console.error(
+        `Failed to refresh product ${product.id}:`,
+        errorMessage
+      );
+
+      results.push({
+        productId: product.id,
+        title: product.title,
+        status: "failed",
+        error: errorMessage,
+      });
     }
   }
 
@@ -122,6 +139,9 @@ export async function refreshProducts(
     totalProducts: products.length,
     updatedCount,
     skippedCount,
-    notificationCount,
+    failedCount,
+    startedAt,
+    completedAt: new Date().toISOString(),
+    results,
   };
 }

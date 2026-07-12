@@ -1,42 +1,37 @@
-import { getSession } from "@/lib/auth";
-import { refreshProducts } from "@/lib/refresh-products";
 import { NextResponse } from "next/server";
+import { refreshAllTrackedProducts } from "@/lib/refresh-products";
 
-export async function POST(request: Request) {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+export async function POST() {
   try {
-    const session = await getSession();
+    console.log("Manual refresh started:", new Date().toISOString());
 
-    // If unauthenticated, verify CRON_SECRET to permit global system-wide refresh
-    if (!session) {
-      const authHeader = request.headers.get("Authorization");
-      const cronSecret = process.env.CRON_SECRET;
+    const result = await refreshAllTrackedProducts();
 
-      if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json(
-          { error: "Unauthorized. Missing or invalid CRON_SECRET." },
-          { status: 401 }
-        );
-      }
-    }
-
-    // If logged in from dashboard, refresh only the user's products
-    // If authenticated via CRON_SECRET (system cron), refresh all products
-    const summary = await refreshProducts({
-      userId: session?.userId,
+    console.log("Manual refresh completed:", {
+      updated: result.updatedCount,
+      skipped: result.skippedCount,
+      failed: result.failedCount,
     });
 
     return NextResponse.json({
-      message: "Price refresh completed successfully",
-      ...summary,
+      message: "Manual refresh completed",
+      ...result,
     });
   } catch (error) {
-    console.error("REFRESH ALL ERROR:", error);
+    console.error("MANUAL REFRESH ERROR:", error);
+
     return NextResponse.json(
       {
-        error: "Failed to refresh product prices",
+        error: "Failed to refresh all products",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
