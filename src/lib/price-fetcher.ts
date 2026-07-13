@@ -53,10 +53,32 @@ async function fetchDynamicPriceWithPuppeteer(
   store: string,
   selectors: string[]
 ): Promise<number | null> {
+  console.log(`[PUPPETEER] Running on Vercel`);
   console.log(`[PUPPETEER] Scraping dynamically on Vercel: ${url}`);
   const puppeteer = await import("puppeteer-core");
   const chromiumModule = await import("@sparticuz/chromium");
   const chromium = chromiumModule.default;
+
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  const chromiumBinPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "@sparticuz",
+    "chromium",
+    "bin"
+  );
+
+  let executablePath: string;
+
+  if (fs.existsSync(chromiumBinPath)) {
+    console.log("[PUPPETEER] Chromium bin path found:", chromiumBinPath);
+    executablePath = await chromium.executablePath(chromiumBinPath);
+  } else {
+    console.warn("[PUPPETEER] Chromium bin path missing, trying default executablePath");
+    executablePath = await chromium.executablePath();
+  }
 
   const browser = await puppeteer.default.launch({
     args: [
@@ -66,7 +88,7 @@ async function fetchDynamicPriceWithPuppeteer(
       "--no-sandbox",
       "--disable-setuid-sandbox",
     ],
-    executablePath: await chromium.executablePath(),
+    executablePath,
     headless: true,
     defaultViewport: {
       width: 1440,
