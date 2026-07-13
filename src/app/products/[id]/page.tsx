@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { formatISTDateTime } from "@/lib/format-date";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -215,7 +216,7 @@ export default async function ProductDetailsPage({
               <div className="rounded border border-[#1f2937] bg-[#000000]/40 p-3">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6b7280]">Last Scraped</span>
                 <p className="text-xs font-mono text-[#9ca3af] mt-1">
-                  {latestChecked ? new Date(latestChecked).toLocaleString() : "No data"}
+                  {latestChecked ? formatISTDateTime(latestChecked) : "No data"}
                 </p>
               </div>
             </div>
@@ -276,7 +277,7 @@ export default async function ProductDetailsPage({
                   >
                     <div>
                       <span className="text-[10px] text-[#6b7280] uppercase block">Scraped At</span>
-                      <span className="font-mono text-[#9ca3af]">{new Date(item.createdAt).toLocaleString()}</span>
+                      <span className="font-mono text-[#9ca3af]">{formatISTDateTime(item.createdAt)}</span>
                     </div>
 
                     <div className="text-right">

@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { formatISTDateTime, formatISTTime } from "@/lib/format-date";
 
 function getPriceStatus(currentPrice: number | null, targetPrice: number) {
   if (currentPrice === null) {
@@ -71,10 +72,7 @@ export default async function DashboardPage() {
     .map((t) => (t.product.priceHistory[0] ? new Date(t.product.priceHistory[0].createdAt).getTime() : 0))
     .filter((d) => d > 0);
   const lastUpdated = latestCheckDates.length
-    ? new Date(Math.max(...latestCheckDates)).toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? formatISTTime(new Date(Math.max(...latestCheckDates)))
     : "Never";
 
   return (
@@ -328,12 +326,7 @@ export default async function DashboardPage() {
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6b7280]">Last Scraped</span>
                         <p className="text-xs font-mono text-[#9ca3af] mt-0.5">
                           {latestHistory
-                            ? new Date(latestHistory.createdAt).toLocaleString(undefined, {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
+                            ? formatISTDateTime(latestHistory.createdAt)
                             : "No history"}
                         </p>
                       </div>
