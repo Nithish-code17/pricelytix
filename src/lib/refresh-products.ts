@@ -61,7 +61,7 @@ export async function refreshAllTrackedProducts(): Promise<RefreshSummary> {
           productId: product.id,
           title: product.title,
           status: "skipped",
-          error: "Current price could not be fetched",
+          error: "Price not found or site blocked",
         });
 
         continue;
