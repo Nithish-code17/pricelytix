@@ -98,6 +98,40 @@ function isValidFlipkartPriceText(text: string): boolean {
   return !blacklisted.some((word) => lower.includes(word));
 }
 
+async function tryAmazonFallbackApi(url: string): Promise<number | null> {
+  const fallbackUrl = process.env.AMAZON_PRICE_API_URL;
+  if (!fallbackUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${fallbackUrl}?url=${encodeURIComponent(url)}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.warn("[AMAZON FALLBACK API FAILED] HTTP status", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data && typeof data.price === "number") {
+      const price = data.price;
+      if (isReasonablePrice(price)) {
+        console.log(`[PRICE FOUND] AMAZON ₹${price} via external fallback API`);
+        return price;
+      }
+    }
+    
+    console.warn("[AMAZON FALLBACK API FAILED] Invalid price format in JSON");
+    return null;
+  } catch (error) {
+    console.error("[AMAZON FALLBACK API FAILED]", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 async function fetchDynamicPriceWithPuppeteer(
   url: string,
   store: string,
@@ -218,7 +252,7 @@ async function fetchDynamicPriceWithPuppeteer(
           const price = parsePrice(text);
           if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
             foundPrice = price;
-            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer selector (${selector})`);
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer selector`);
             break;
           }
         }
@@ -247,7 +281,7 @@ async function fetchDynamicPriceWithPuppeteer(
             const price = parsePrice(content);
             if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
               foundPrice = price;
-              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer meta tag (${sel})`);
+              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer meta tag`);
               break;
             }
           }
@@ -448,7 +482,7 @@ async function fetchDynamicPriceWithPlaywright(
           const price = parsePrice(text);
           if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
             foundPrice = price;
-            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright selector (${selector})`);
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright selector`);
             break;
           }
         }
@@ -472,7 +506,7 @@ async function fetchDynamicPriceWithPlaywright(
             const price = parsePrice(content);
             if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
               foundPrice = price;
-              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright meta tag (${sel})`);
+              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright meta tag`);
               break;
             }
           }
@@ -620,31 +654,57 @@ async function fetchAmazonPrice(url: string): Promise<number | null> {
     html = await fetchHtml(url);
   } catch (error) {
     console.warn("AMAZON STATIC FETCH FAILED:", error instanceof Error ? error.message : error);
-    const dynamicResult = await fetchDynamicPrice(url, "Amazon", selectors);
-    if (dynamicResult === null) {
-      console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
-    }
-    return dynamicResult;
   }
 
-  const $ = cheerio.load(html);
+  if (html) {
+    const $ = cheerio.load(html);
+    const bodyText = $.text();
+    const bodyTextLower = bodyText.toLowerCase();
+    const botIndicators = [
+      "captcha",
+      "robot",
+      "automated access",
+      "enter the characters",
+      "sorry",
+      "access denied",
+      "blocked",
+    ];
+    if (botIndicators.some((indicator) => bodyTextLower.includes(indicator))) {
+      console.warn("[PUPPETEER] Bot/Captcha page detected for Amazon");
+      const fallbackResult = await tryAmazonFallbackApi(url);
+      if (fallbackResult !== null) {
+        return fallbackResult;
+      }
+      console.log(`[AMAZON BLOCKED] Bot/Captcha detected. Keeping previous price.`);
+      console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
+      return null;
+    }
 
-  for (const selector of selectors) {
-    const text = $(selector).first().text().trim();
-    const price = parsePrice(text);
+    for (const selector of selectors) {
+      const text = $(selector).first().text().trim();
+      const price = parsePrice(text);
 
-    if (isReasonablePrice(price)) {
-      console.log(`[PRICE FOUND] AMAZON ₹${price} via static selector (${selector})`);
-      return price;
+      if (price !== null && isReasonablePrice(price) && !isSuspiciousPriceForTitle(price, url)) {
+        console.log(`[PRICE FOUND] AMAZON ₹${price} via static selector`);
+        return price;
+      }
     }
   }
 
   console.log("Amazon static selectors did not find a price. Trying dynamic browser fetch...");
   const dynamicResult = await fetchDynamicPrice(url, "Amazon", selectors);
-  if (dynamicResult === null) {
-    console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
+  if (dynamicResult !== null) {
+    return dynamicResult;
   }
-  return dynamicResult;
+
+  const fallbackResult = await tryAmazonFallbackApi(url);
+  if (fallbackResult !== null) {
+    return fallbackResult;
+  }
+
+  console.log(`[AMAZON BLOCKED] Bot/Captcha detected. Keeping previous price.`);
+  console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
+  return null;
 }
 
 async function fetchFlipkartPrice(url: string): Promise<number | null> {
@@ -672,7 +732,7 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
       const text = $(selector).first().text().trim();
       const price = parsePrice(text);
       if (isReasonablePrice(price) && isValidFlipkartPriceText(text)) {
-        console.log(`[PRICE FOUND] FLIPKART ₹${price} via static selector (${selector})`);
+        console.log(`[PRICE FOUND] FLIPKART ₹${price} via static selector`);
         return price;
       }
     }
@@ -682,7 +742,7 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
       if (content) {
         const price = parsePrice(content);
         if (isReasonablePrice(price)) {
-          console.log(`[PRICE FOUND] FLIPKART ₹${price} via static meta (${sel})`);
+          console.log(`[PRICE FOUND] FLIPKART ₹${price} via static meta`);
           return price;
         }
       }
