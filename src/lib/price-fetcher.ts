@@ -23,6 +23,56 @@ function isReasonablePrice(price: number | null): boolean {
   return price >= 50 && price <= 500000;
 }
 
+function isSuspiciousPriceForTitle(price: number, titleOrUrl: string): boolean {
+  if (price < 50 || price > 500000) return true;
+
+  const lowerText = titleOrUrl.toLowerCase();
+  const expensiveKeywords = ["phone", "galaxy", "oneplus", "motorola", "iphone", "laptop"];
+  const speakerKeywords = ["marshall", "speaker", "bluetooth"];
+
+  if (expensiveKeywords.some((kw) => lowerText.includes(kw)) && price < 3000) {
+    return true;
+  }
+  if (speakerKeywords.some((kw) => lowerText.includes(kw)) && price < 1000) {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeProductUrl(url: string, store: string): string {
+  try {
+    const parsedUrl = new URL(url);
+    const storeLower = store.toLowerCase();
+
+    if (storeLower.includes("amazon")) {
+      const dpMatch = parsedUrl.pathname.match(/\/dp\/([A-Z0-9]{10})/i);
+      if (dpMatch) {
+        return `https://www.amazon.in/dp/${dpMatch[1]}`;
+      }
+      const gpMatch = parsedUrl.pathname.match(/\/gp\/product\/([A-Z0-9]{10})/i);
+      if (gpMatch) {
+        return `https://www.amazon.in/dp/${gpMatch[1]}`;
+      }
+      parsedUrl.search = "";
+      return parsedUrl.toString();
+    }
+
+    if (storeLower.includes("flipkart")) {
+      const pid = parsedUrl.searchParams.get("pid");
+      parsedUrl.search = "";
+      if (pid) {
+        parsedUrl.searchParams.set("pid", pid);
+      }
+      return parsedUrl.toString();
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
@@ -87,17 +137,24 @@ async function fetchDynamicPriceWithPuppeteer(
       "--disable-gpu",
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-background-networking",
+      "--disable-default-apps",
+      "--disable-extensions",
     ],
     executablePath,
     headless: true,
     defaultViewport: {
-      width: 1440,
-      height: 900,
+      width: 1366,
+      height: 768,
     },
   });
 
   try {
     const page = await browser.newPage();
+    page.setDefaultNavigationTimeout(20000);
+    page.setDefaultTimeout(10000);
+
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     );
@@ -108,48 +165,97 @@ async function fetchDynamicPriceWithPuppeteer(
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
-      if (type === "image" || type === "font" || type === "media") {
+      if (
+        type === "image" ||
+        type === "font" ||
+        type === "media" ||
+        type === "stylesheet"
+      ) {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
+    try {
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: 20000,
+      });
+    } catch (gotoError) {
+      console.warn("[PUPPETEER] Navigation warning, trying to read partial page:", gotoError instanceof Error ? gotoError.message : gotoError);
+    }
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
+    const bodyText = await page.evaluate(() => document.body.innerText);
+    const bodyTextLower = bodyText.toLowerCase();
+    const botIndicators = [
+      "captcha",
+      "robot",
+      "automated access",
+      "enter the characters",
+      "sorry",
+      "access denied",
+      "blocked",
+    ];
+    if (botIndicators.some((indicator) => bodyTextLower.includes(indicator))) {
+      console.warn(`[PUPPETEER] Bot/Captcha page detected for ${store}`);
+      return null;
+    }
+
     let foundPrice: number | null = null;
 
-    // 1. Try structured meta tags
-    const metaSelectors = [
-      'meta[itemprop="price"]',
-      'meta[property="product:price:amount"]',
-      'meta[property="og:price:amount"]',
-    ];
-
-    for (const sel of metaSelectors) {
+    // A. Store-specific selectors
+    for (const selector of selectors) {
       try {
-        const content = await page.evaluate((s) => {
-          const el = document.querySelector(s);
-          return el ? el.getAttribute("content") : null;
-        }, sel);
+        const text = await page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          return el ? el.textContent : null;
+        }, selector);
 
-        if (content) {
-          const price = parsePrice(content);
-          if (isReasonablePrice(price)) {
+        if (text) {
+          const price = parsePrice(text);
+          if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
             foundPrice = price;
-            console.log(`[PUPPETEER] Found price via meta tag ${sel}: ₹${price}`);
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer selector (${selector})`);
             break;
           }
         }
       } catch {}
     }
 
-    // 2. Try JSON-LD script
+    // B. Meta tags
+    if (foundPrice === null) {
+      const metaSelectors = [
+        'meta[itemprop="price"]',
+        'meta[property="product:price:amount"]',
+        'meta[property="og:price:amount"]',
+        "meta[property='product:price:amount']",
+        "meta[name='twitter:data1']",
+        "meta[property='og:price:amount']"
+      ];
+
+      for (const sel of metaSelectors) {
+        try {
+          const content = await page.evaluate((s) => {
+            const el = document.querySelector(s);
+            return el ? el.getAttribute("content") : null;
+          }, sel);
+
+          if (content) {
+            const price = parsePrice(content);
+            if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
+              foundPrice = price;
+              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via puppeteer meta tag (${sel})`);
+              break;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // C. JSON-LD scripts
     if (foundPrice === null) {
       try {
         const scriptTexts = await page.evaluate(() => {
@@ -157,15 +263,15 @@ async function fetchDynamicPriceWithPuppeteer(
           return scripts.map((s) => s.textContent || "");
         });
 
-        const candidates: number[] = [];
-        const addCandidate = (text: string) => {
+        const jsonLdCandidates: number[] = [];
+        const addJsonLdCandidate = (text: string) => {
           if (!text) return;
           const cleaned = text.toLowerCase();
           const blacklisted = ["emi", "off", "%", "save", "discount", "exchange", "coupon"];
           if (blacklisted.some((word) => cleaned.includes(word))) return;
           const parsed = parsePrice(text);
-          if (parsed !== null && isReasonablePrice(parsed)) {
-            candidates.push(parsed);
+          if (parsed !== null && !isSuspiciousPriceForTitle(parsed, url)) {
+            jsonLdCandidates.push(parsed);
           }
         };
 
@@ -178,14 +284,14 @@ async function fetchDynamicPriceWithPuppeteer(
                 if (obj.offers) {
                   if (Array.isArray(obj.offers)) {
                     for (const off of obj.offers) {
-                      if (off.price) addCandidate(String(off.price));
+                      if (off.price) addJsonLdCandidate(String(off.price));
                     }
                   } else if (obj.offers.price) {
-                    addCandidate(String(obj.offers.price));
+                    addJsonLdCandidate(String(obj.offers.price));
                   }
                 }
                 if (obj.price) {
-                  addCandidate(String(obj.price));
+                  addJsonLdCandidate(String(obj.price));
                 }
                 for (const key of Object.keys(obj)) {
                   searchJsonLd(obj[key]);
@@ -195,49 +301,66 @@ async function fetchDynamicPriceWithPuppeteer(
             } catch {}
           }
         }
-        if (candidates.length > 0) {
-          foundPrice = candidates[0];
-          console.log(`[PUPPETEER] Found price via JSON-LD: ₹${foundPrice}`);
+        if (jsonLdCandidates.length > 0) {
+          foundPrice = jsonLdCandidates[0];
+          console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via puppeteer JSON-LD`);
         }
       } catch (err) {
         console.error("[PUPPETEER] JSON-LD extraction failed:", err);
       }
     }
 
-    // 3. Try selectors in priority order
-    if (foundPrice === null) {
-      for (const selector of selectors) {
-        try {
-          const text = await page.evaluate((sel) => {
-            const el = document.querySelector(sel);
-            return el ? el.textContent : null;
-          }, selector);
-
-          if (text) {
-            const price = parsePrice(text);
-            if (isReasonablePrice(price)) {
-              foundPrice = price;
-              console.log(`[PUPPETEER] Found price via selector ${selector}: ₹${price}`);
-              break;
-            }
-          }
-        } catch {}
-      }
-    }
-
-    // 4. Fallback to body text rupee regex
+    // D. Next.js data script if available
     if (foundPrice === null) {
       try {
-        const bodyText = await page.evaluate(() => document.body.innerText);
+        const nextDataText = await page.evaluate(() => {
+          const el = document.getElementById("__NEXT_DATA__");
+          return el ? el.textContent : null;
+        });
+        if (nextDataText) {
+          const json = JSON.parse(nextDataText);
+          const nextCandidates: number[] = [];
+          const searchNextData = (obj: any) => {
+            if (!obj || typeof obj !== "object") return;
+            if (obj.price && typeof obj.price === "number") {
+              if (!isSuspiciousPriceForTitle(obj.price, url)) {
+                nextCandidates.push(obj.price);
+              }
+            }
+            if (obj.sellingPrice && typeof obj.sellingPrice === "number") {
+              if (!isSuspiciousPriceForTitle(obj.sellingPrice, url)) {
+                nextCandidates.push(obj.sellingPrice);
+              }
+            }
+            for (const key of Object.keys(obj)) {
+              searchNextData(obj[key]);
+            }
+          };
+          searchNextData(json);
+          if (nextCandidates.length > 0) {
+            foundPrice = nextCandidates[0];
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via puppeteer Next.js Data`);
+          }
+        }
+      } catch {}
+    }
+
+    // E. Body rupee regex as last fallback only
+    if (foundPrice === null) {
+      try {
         const rupeeMatches = bodyText.match(/₹\s?[\d,]+/g);
         if (rupeeMatches) {
+          const regexCandidates: number[] = [];
           for (const match of rupeeMatches) {
             const price = parsePrice(match);
-            if (isReasonablePrice(price)) {
-              foundPrice = price;
-              console.log(`[PUPPETEER] Fallback found price in body text: ₹${price}`);
-              break;
+            if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
+              regexCandidates.push(price);
             }
+          }
+          if (regexCandidates.length > 0) {
+            regexCandidates.sort((a, b) => b - a);
+            foundPrice = regexCandidates[0];
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via puppeteer Body Regex`);
           }
         }
       } catch {}
@@ -275,56 +398,101 @@ async function fetchDynamicPriceWithPlaywright(
     // Block heavy resources
     await page.route("**/*", (route) => {
       const type = route.request().resourceType();
-      if (type === "image" || type === "font" || type === "media") {
+      if (
+        type === "image" ||
+        type === "font" ||
+        type === "media" ||
+        type === "stylesheet"
+      ) {
         route.abort();
       } else {
         route.continue();
       }
     });
 
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
+    try {
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+    } catch (gotoError) {
+      console.warn("[PLAYWRIGHT] Navigation warning, trying to read partial page:", gotoError instanceof Error ? gotoError.message : gotoError);
+    }
 
     await page.waitForTimeout(5000);
 
+    const bodyText = await page.locator("body").innerText();
+    const bodyTextLower = bodyText.toLowerCase();
+    const botIndicators = [
+      "captcha",
+      "robot",
+      "automated access",
+      "enter the characters",
+      "sorry",
+      "access denied",
+      "blocked",
+    ];
+    if (botIndicators.some((indicator) => bodyTextLower.includes(indicator))) {
+      console.warn(`[PLAYWRIGHT] Bot/Captcha page detected for ${store}`);
+      await context.close();
+      return null;
+    }
+
     let foundPrice: number | null = null;
 
-    // 1. Try structured meta tags
-    const metaSelectors = [
-      'meta[itemprop="price"]',
-      'meta[property="product:price:amount"]',
-      'meta[property="og:price:amount"]',
-    ];
-
-    for (const sel of metaSelectors) {
+    // A. Store-specific selectors
+    for (const selector of selectors) {
       try {
-        const content = await page.locator(sel).first().getAttribute("content", { timeout: 2000 });
-        if (content) {
-          const price = parsePrice(content);
-          if (isReasonablePrice(price)) {
+        const text = await page.locator(selector).first().textContent({ timeout: 2000 });
+        if (text) {
+          const price = parsePrice(text);
+          if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
             foundPrice = price;
-            console.log(`[PLAYWRIGHT] Found price via meta tag ${sel}: ₹${price}`);
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright selector (${selector})`);
             break;
           }
         }
       } catch {}
     }
 
-    // 2. Try JSON-LD script
+    // B. Meta tags
+    if (foundPrice === null) {
+      const metaSelectors = [
+        'meta[itemprop="price"]',
+        'meta[property="product:price:amount"]',
+        'meta[property="og:price:amount"]',
+        "meta[property='product:price:amount']",
+        "meta[name='twitter:data1']",
+        "meta[property='og:price:amount']"
+      ];
+      for (const sel of metaSelectors) {
+        try {
+          const content = await page.locator(sel).first().getAttribute("content", { timeout: 2000 });
+          if (content) {
+            const price = parsePrice(content);
+            if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
+              foundPrice = price;
+              console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${price} via playwright meta tag (${sel})`);
+              break;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // C. JSON-LD scripts
     if (foundPrice === null) {
       try {
         const scripts = await page.locator('script[type="application/ld+json"]').all();
-        const candidates: number[] = [];
-        const addCandidate = (text: string) => {
+        const jsonLdCandidates: number[] = [];
+        const addJsonLdCandidate = (text: string) => {
           if (!text) return;
           const cleaned = text.toLowerCase();
           const blacklisted = ["emi", "off", "%", "save", "discount", "exchange", "coupon"];
           if (blacklisted.some((word) => cleaned.includes(word))) return;
           const parsed = parsePrice(text);
-          if (parsed !== null && isReasonablePrice(parsed)) {
-            candidates.push(parsed);
+          if (parsed !== null && !isSuspiciousPriceForTitle(parsed, url)) {
+            jsonLdCandidates.push(parsed);
           }
         };
 
@@ -338,14 +506,14 @@ async function fetchDynamicPriceWithPlaywright(
                 if (obj.offers) {
                   if (Array.isArray(obj.offers)) {
                     for (const off of obj.offers) {
-                      if (off.price) addCandidate(String(off.price));
+                      if (off.price) addJsonLdCandidate(String(off.price));
                     }
                   } else if (obj.offers.price) {
-                    addCandidate(String(obj.offers.price));
+                    addJsonLdCandidate(String(obj.offers.price));
                   }
                 }
                 if (obj.price) {
-                  addCandidate(String(obj.price));
+                  addJsonLdCandidate(String(obj.price));
                 }
                 for (const key of Object.keys(obj)) {
                   searchJsonLd(obj[key]);
@@ -355,47 +523,61 @@ async function fetchDynamicPriceWithPlaywright(
             } catch {}
           }
         }
-        if (candidates.length > 0) {
-          foundPrice = candidates[0];
-          console.log(`[PLAYWRIGHT] Found price via JSON-LD: ₹${foundPrice}`);
+        if (jsonLdCandidates.length > 0) {
+          foundPrice = jsonLdCandidates[0];
+          console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via playwright JSON-LD`);
         }
       } catch {}
     }
 
-    // 3. Try selectors
-    if (foundPrice === null) {
-      for (const selector of selectors) {
-        try {
-          const elements = await page.locator(selector).all();
-          for (const el of elements) {
-            const text = await el.textContent({ timeout: 2000 });
-            if (text) {
-              const price = parsePrice(text);
-              if (isReasonablePrice(price)) {
-                foundPrice = price;
-                console.log(`[PLAYWRIGHT] Found price via selector ${selector}: ₹${price}`);
-                break;
-              }
-            }
-          }
-          if (foundPrice !== null) break;
-        } catch {}
-      }
-    }
-
-    // 4. Fallback to body text rupee regex
+    // D. Next.js Data Script
     if (foundPrice === null) {
       try {
-        const bodyText = await page.locator("body").innerText();
+        const nextDataText = await page.locator('script#__NEXT_DATA__').first().textContent({ timeout: 2000 });
+        if (nextDataText) {
+          const json = JSON.parse(nextDataText);
+          const nextCandidates: number[] = [];
+          const searchNextData = (obj: any) => {
+            if (!obj || typeof obj !== "object") return;
+            if (obj.price && typeof obj.price === "number") {
+              if (!isSuspiciousPriceForTitle(obj.price, url)) {
+                nextCandidates.push(obj.price);
+              }
+            }
+            if (obj.sellingPrice && typeof obj.sellingPrice === "number") {
+              if (!isSuspiciousPriceForTitle(obj.sellingPrice, url)) {
+                nextCandidates.push(obj.sellingPrice);
+              }
+            }
+            for (const key of Object.keys(obj)) {
+              searchNextData(obj[key]);
+            }
+          };
+          searchNextData(json);
+          if (nextCandidates.length > 0) {
+            foundPrice = nextCandidates[0];
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via playwright Next.js Data`);
+          }
+        }
+      } catch {}
+    }
+
+    // E. Body rupee regex as last fallback only
+    if (foundPrice === null) {
+      try {
         const rupeeMatches = bodyText.match(/₹\s?[\d,]+/g);
         if (rupeeMatches) {
+          const regexCandidates: number[] = [];
           for (const match of rupeeMatches) {
             const price = parsePrice(match);
-            if (isReasonablePrice(price)) {
-              foundPrice = price;
-              console.log(`[PLAYWRIGHT] Fallback found price in body text: ₹${match}`);
-              break;
+            if (price !== null && !isSuspiciousPriceForTitle(price, url)) {
+              regexCandidates.push(price);
             }
+          }
+          if (regexCandidates.length > 0) {
+            regexCandidates.sort((a, b) => b - a);
+            foundPrice = regexCandidates[0];
+            console.log(`[PRICE FOUND] ${store.toUpperCase()} ₹${foundPrice} via playwright Body Regex`);
           }
         }
       } catch {}
@@ -438,7 +620,11 @@ async function fetchAmazonPrice(url: string): Promise<number | null> {
     html = await fetchHtml(url);
   } catch (error) {
     console.warn("AMAZON STATIC FETCH FAILED:", error instanceof Error ? error.message : error);
-    return await fetchDynamicPrice(url, "Amazon", selectors);
+    const dynamicResult = await fetchDynamicPrice(url, "Amazon", selectors);
+    if (dynamicResult === null) {
+      console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
+    }
+    return dynamicResult;
   }
 
   const $ = cheerio.load(html);
@@ -448,12 +634,17 @@ async function fetchAmazonPrice(url: string): Promise<number | null> {
     const price = parsePrice(text);
 
     if (isReasonablePrice(price)) {
+      console.log(`[PRICE FOUND] AMAZON ₹${price} via static selector (${selector})`);
       return price;
     }
   }
 
   console.log("Amazon static selectors did not find a price. Trying dynamic browser fetch...");
-  return await fetchDynamicPrice(url, "Amazon", selectors);
+  const dynamicResult = await fetchDynamicPrice(url, "Amazon", selectors);
+  if (dynamicResult === null) {
+    console.log(`[PRICE NOT FOUND] AMAZON ${url}`);
+  }
+  return dynamicResult;
 }
 
 async function fetchFlipkartPrice(url: string): Promise<number | null> {
@@ -465,20 +656,63 @@ async function fetchFlipkartPrice(url: string): Promise<number | null> {
     "[class*='Nx9bqj']",
     "[class*='_30jeq3']",
   ];
-  return await fetchDynamicPrice(url, "Flipkart", selectors);
+
+  const metaSelectors = [
+    "meta[property='product:price:amount']",
+    "meta[name='twitter:data1']",
+    "meta[property='og:price:amount']",
+    "meta[itemprop='price']"
+  ];
+
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+
+    for (const selector of selectors) {
+      const text = $(selector).first().text().trim();
+      const price = parsePrice(text);
+      if (isReasonablePrice(price) && isValidFlipkartPriceText(text)) {
+        console.log(`[PRICE FOUND] FLIPKART ₹${price} via static selector (${selector})`);
+        return price;
+      }
+    }
+
+    for (const sel of metaSelectors) {
+      const content = $(sel).attr("content") || $(sel).attr("value");
+      if (content) {
+        const price = parsePrice(content);
+        if (isReasonablePrice(price)) {
+          console.log(`[PRICE FOUND] FLIPKART ₹${price} via static meta (${sel})`);
+          return price;
+        }
+      }
+    }
+  } catch (error) {
+    // If static fetch fails
+  }
+
+  console.warn("FLIPKART STATIC FETCH FAILED. Trying dynamic browser fetch...");
+  const dynamicResult = await fetchDynamicPrice(url, "Flipkart", selectors);
+  if (dynamicResult === null) {
+    console.log(`[PRICE NOT FOUND] FLIPKART ${url}`);
+  }
+  return dynamicResult;
 }
 
 export async function fetchProductPrice(
   url: string,
   store: string
 ): Promise<number | null> {
+  const normalizedUrl = normalizeProductUrl(url, store);
+  const normalizedStore = store.toLowerCase();
+
   try {
-    if (store === "Amazon") {
-      return await fetchAmazonPrice(url);
+    if (normalizedStore.includes("amazon")) {
+      return await fetchAmazonPrice(normalizedUrl);
     }
 
-    if (store === "Flipkart") {
-      return await fetchFlipkartPrice(url);
+    if (normalizedStore.includes("flipkart")) {
+      return await fetchFlipkartPrice(normalizedUrl);
     }
 
     return null;
