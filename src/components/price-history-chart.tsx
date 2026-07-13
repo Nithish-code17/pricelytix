@@ -10,6 +10,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { formatISTDateTime } from "@/lib/format-date";
+
 type PriceHistoryItem = {
   id: string;
   price: number;
@@ -26,12 +28,7 @@ export default function PriceHistoryChart({
   const chartData = [...history]
     .reverse()
     .map((item) => ({
-      time: new Date(item.createdAt).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      time: formatISTDateTime(item.createdAt),
       price: item.price,
     }));
 
