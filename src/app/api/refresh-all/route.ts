@@ -1,3 +1,4 @@
+import { getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { refreshAllTrackedProducts } from "@/lib/refresh-products";
 
@@ -7,9 +8,17 @@ export const maxDuration = 300;
 
 export async function POST() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in." },
+        { status: 401 }
+      );
+    }
+
     console.log("Manual refresh started:", new Date().toISOString());
 
-    const result = await refreshAllTrackedProducts();
+    const result = await refreshAllTrackedProducts(session.userId);
 
     console.log("Manual refresh completed:", {
       updated: result.updatedCount,
