@@ -19,7 +19,9 @@ export type RefreshSummary = {
   results: RefreshProductResult[];
 };
 
-export async function refreshAllTrackedProducts(): Promise<RefreshSummary> {
+export async function refreshAllTrackedProducts(
+  userId?: string
+): Promise<RefreshSummary> {
   const startedAt = new Date().toISOString();
 
   const products = await prisma.product.findMany({
@@ -27,6 +29,7 @@ export async function refreshAllTrackedProducts(): Promise<RefreshSummary> {
       trackers: {
         some: {
           isActive: true,
+          ...(userId ? { userId } : {}),
         },
       },
     },
