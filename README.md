@@ -23,7 +23,7 @@
 
 ---
 
-### 📖 Table of Contents
+### 📖 Table of Content
 
 - [Project Overview](#-project-overview)
 - [Problem Statement](#-problem-statement)
