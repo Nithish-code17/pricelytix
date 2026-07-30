@@ -1,175 +1,85 @@
 <div align="center">
 
 # 🛒 Pricelytix
-### AI-Powered Price Tracking Agent
 
-**Track product prices. Analyze trends. Get smart alerts. Let AI tell you when to buy.**
+### AI-Powered Price Tracking and Smart Shopping Assistant
 
-<img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
-<img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
-<img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma" />
-<img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=for-the-badge&logo=postgresql" />
-<img src="https://img.shields.io/badge/AI-Powered-06B6D4?style=for-the-badge" />
-<img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel" />
-<img src="https://img.shields.io/badge/License-MIT-8b5cf6?style=for-the-badge" />
+**Track prices, understand trends, receive smart alerts, and know when to buy.**
 
-<br/>
+<p>
+  <img src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Neon-00E599?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+</p>
 
-<img src="https://img.shields.io/badge/Status-Active-22c55e?style=flat-square" />
-<img src="https://img.shields.io/badge/Made%20with-%E2%9D%A4-f43f5e?style=flat-square" />
-<img src="https://img.shields.io/badge/PRs-Welcome-38bdf8?style=flat-square" />
+<p>
+  <img src="https://img.shields.io/badge/AI-OpenAI%20Compatible-06B6D4?style=for-the-badge" alt="AI Powered" />
+  <img src="https://img.shields.io/badge/Deployment-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
+  <img src="https://img.shields.io/badge/License-MIT-8B5CF6?style=for-the-badge" alt="MIT License" />
+</p>
 
-</div>
+<p>
+  <img src="https://img.shields.io/badge/Status-Active-22C55E?style=flat-square" alt="Active" />
+  <img src="https://img.shields.io/badge/PRs-Welcome-38BDF8?style=flat-square" alt="PRs Welcome" />
+</p>
 
----
-
-### 📖 Table of Content
-
-- [Project Overview](#-project-overview)
-- [Problem Statement](#-problem-statement)
-- [Key Features](#-key-features)
-- [Technology Stack](#-technology-stack)
-- [System Architecture](#-system-architecture)
-- [Product Tracking Workflow](#-product-tracking-workflow)
-- [AI Assistant Workflow](#-ai-assistant-workflow)
-- [Authentication Flow](#-authentication-flow)
-- [Email Alert Flow](#-email-alert-flow)
-- [Price Fetching Strategy](#-price-fetching-strategy)
-- [Database Models](#-database-models)
-- [API Routes](#-important-api-routes)
-- [Prompt Engineering](#-prompt-engineering)
-- [AI Fallback Mode](#-ai-fallback-mode)
-- [Security Features](#-security-features)
-- [Local Setup](#-local-setup)
-- [Deployment](#-production-deployment)
-- [Testing Checklist](#-testing-checklist)
-- [Limitations](#️-limitations)
-- [Future Enhancements](#-future-enhancements)
-- [Author](#-author)
-
----
-
-## 📌 Project Overview
-
-**Pricelytix** is an **AI-powered full-stack SaaS price tracking platform** that helps users monitor e-commerce product prices, store price history, receive notifications when prices reach their target, and get intelligent AI-based shopping recommendations.
-
-Users can create an account, add product URLs, set target prices, refresh prices, view price history charts, receive in-app notifications, and get email alerts when the product price becomes less than or equal to the target price.
-
-The project also includes an **AI Shopping Assistant** that can understand natural language shopping queries, extract product URLs and target prices, detect user intent, and provide buy/wait recommendations.
-
-<div align="center">
-
-| 🔐 Auth | 📦 Tracking | 🤖 AI | 📧 Alerts | 🌑 UI |
-|:---:|:---:|:---:|:---:|:---:|
-| JWT + bcrypt | Amazon & Flipkart | LLM + Fallback | Email + In-App | Dark SaaS |
+[Overview](#-overview) • [Features](#-key-features) • [Architecture](#-architecture) • [Setup](#-quick-start) • [Roadmap](#-roadmap)
 
 </div>
 
 ---
 
-## 🎯 Problem Statement
+## 📌 Overview
 
-Online product prices change frequently across platforms like Amazon and Flipkart. A product may be expensive today and become cheaper during a sale or discount period. Users usually need to manually visit product pages again and again to check whether the price has dropped.
+**Pricelytix** is a full-stack SaaS application that automates e-commerce price tracking and helps users decide whether to **buy now, wait, or continue monitoring** a product.
 
-This creates several problems:
+Users can add Amazon or Flipkart product URLs, set target prices, view price history, receive in-app and email alerts, and interact with an AI shopping assistant using natural-language requests.
 
-- Users may miss important price drops.
-- Users waste time checking the same product repeatedly.
-- Users do not have a simple way to track price history.
-- Users may not know whether to buy now or wait.
-- Users need personalized alerts when a product reaches their expected price.
+> **Alert condition**
+>
+> ```text
+> currentPrice <= targetPrice
+> ```
 
-**Pricelytix solves this problem by automating product price tracking, storing price history, creating alerts, sending email notifications, and providing AI-powered shopping insights.**
+### Why Pricelytix?
+
+* Eliminates repeated manual price checking
+* Helps users avoid missing price drops
+* Stores historical prices for trend analysis
+* Sends personalized target-price alerts
+* Provides AI-based buying recommendations
+* Supports secure, isolated accounts for multiple users
 
 ---
 
 ## ✨ Key Features
 
-### 🔐 Authentication
+| Feature                  | What it does                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| 🔐 Secure Authentication | Signup, login, logout, bcrypt password hashing, JWT sessions, and HTTP-only cookies          |
+| 👤 User Data Isolation   | Prevents users from accessing or modifying another user's trackers and notifications         |
+| 📦 Product Tracking      | Tracks Amazon and Flipkart products with user-defined target prices                          |
+| 📊 Price History         | Stores price records and displays trends, highest price, lowest price, and last checked time |
+| 🔔 In-App Alerts         | Creates notifications when a product reaches its target price                                |
+| 📧 Email Alerts          | Sends target-price emails through Nodemailer and SMTP                                        |
+| 🤖 AI Assistant          | Extracts intent, product URLs, and target prices from natural-language messages              |
+| 🧠 Shopping Insights     | Generates `BUY NOW`, `WAIT`, and `WATCH CLOSELY` recommendations                             |
+| ⏱ Scheduled Refresh      | Supports manual refresh, local scheduling, and protected Vercel Cron jobs                    |
+| 🌑 SaaS Interface        | Responsive dark dashboard with compact cards, sidebar navigation, and charts                 |
 
-- User signup
-- User login
-- Secure logout
-- Password hashing using bcryptjs
-- JWT-based session handling
-- HTTP-only cookie authentication
-- Protected dashboard and private routes
+---
 
-### 👤 User Data Isolation
+## 🤖 AI Shopping Assistant
 
-Each user has their own tracked products.
+The assistant understands requests such as:
 
-- User A cannot view User B's products.
-- User A cannot edit User B's target price.
-- User A cannot delete User B's tracker.
-- User A cannot dismiss User B's notifications.
-
-This makes Pricelytix a true multi-user SaaS application.
-
-### 📦 Product Tracking
-
-- Add product URL
-- Set target price
-- Detect store automatically
-- Track product current price
-- Preserve old price if scraping fails
-- User-specific tracker creation
-- Safe handling for unsupported or blocked stores
-
-### 📊 Price History
-
-- Stores historical price records
-- Shows price trend chart
-- Displays lowest recorded price
-- Displays highest recorded price
-- Shows last checked time
-- Helps users understand price movement
-
-### 🔔 In-App Notifications
-
-A notification is created when:
-
-```txt
-currentPrice <= targetPrice
-```
-
-Features:
-
-- Unread notification count
-- Product-level alert banners
-- Dismiss / mark notification as read
-- Duplicate notification prevention
-- Alert message when target price is reached
-
-### 📧 Email Alerts
-
-- Sends email when target price is reached
-- Uses Nodemailer with SMTP
-- Sends alert to tracker owner's email
-- Uses fallback email if needed
-- Handles SMTP failures safely
-- Prevents duplicate email alerts
-- Does not break price refresh if email fails
-
-### 🤖 AI Shopping Assistant
-
-The AI Assistant can understand natural language requests such as:
-
-```
+```text
 Track this laptop if it drops below 55000:
 https://www.flipkart.com/example-product
 ```
 
-It extracts:
-
-- Intent
-- Product URL
-- Target price
-- Summary
-- Recommendation
-- Next action
-
-Example AI output:
+It returns structured data that can be safely used by the frontend:
 
 ```json
 {
@@ -182,257 +92,109 @@ Example AI output:
 }
 ```
 
-### 🧠 AI Price Insights
+### Supported AI Modes
 
-Pricelytix provides AI-style recommendations such as:
+* **API mode:** Uses an OpenAI-compatible API.
+* **Fallback mode:** Uses URL detection, price extraction, keyword matching, and rule-based recommendations.
 
-- BUY NOW
-- WAIT
-- WATCH CLOSELY
-- WAIT AND REFRESH LATER
+Supported intents:
 
-These insights are shown on:
-
-- Dashboard (portfolio-level insight)
-- Product details page (product-level insight)
-- AI Assistant page
-
-The app supports a real OpenAI-compatible API mode and also includes a fallback rule-based AI mode for demo reliability.
-
-### ⏱ Scheduled Refresh
-
-- Refresh one product manually
-- Refresh all products manually
-- Local scheduled refresh script
-- Vercel Cron support
-- Secure cron endpoint using `CRON_SECRET`
-- Preserves last known price when scraping fails
-
-### 🌑 Enterprise Dark SaaS UI
-
-- Premium black and charcoal dashboard
-- Sidebar navigation
-- Responsive, compact product list cards
-- Dark input fields and form controls
-- Professional login/signup pages
-- Modern SaaS-style dashboard layout
-- Clean typography using the Inter font
+* `TRACK_PRODUCT`
+* `PRICE_ADVICE`
+* `GENERAL_HELP`
 
 ---
 
 ## 🧩 Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js, React, TypeScript |
-| Styling | Tailwind CSS |
-| Backend | Next.js API Routes |
-| ORM | Prisma |
-| Local Database | SQLite |
-| Production Database | PostgreSQL |
-| Production DB Provider | Neon |
-| Authentication | bcryptjs, JWT, HTTP-only cookies |
-| Email | Nodemailer, Gmail SMTP |
-| AI Layer | OpenAI-compatible API + fallback AI |
-| Web Scraping | Cheerio, Playwright |
-| Charts | Recharts |
-| Deployment | Vercel |
-| Version Control | GitHub |
+| Layer               | Technology                                  |
+| ------------------- | ------------------------------------------- |
+| Frontend            | Next.js, React, TypeScript                  |
+| Styling             | Tailwind CSS                                |
+| Backend             | Next.js API Routes                          |
+| ORM                 | Prisma                                      |
+| Local Database      | SQLite                                      |
+| Production Database | Neon PostgreSQL                             |
+| Authentication      | bcryptjs, JWT, HTTP-only cookies            |
+| Web Scraping        | Cheerio, Playwright                         |
+| AI                  | OpenAI-compatible API + rule-based fallback |
+| Email               | Nodemailer, Gmail SMTP                      |
+| Charts              | Recharts                                    |
+| Deployment          | Vercel                                      |
 
 ---
 
-## 🏗 System Architecture
+## 🏗 Architecture
 
 ```mermaid
 flowchart LR
-    U["👤 User"] --> FE["🖥️ Next.js Frontend<br/>React + Tailwind"]
-    FE --> API["⚙️ Next.js API Routes"]
+    U["👤 User"] --> FE["🖥️ Next.js Frontend"]
+    FE --> API["⚙️ API Routes"]
 
-    subgraph Core["Application Core"]
-        API --> BL["🧩 Business Logic Layer"]
-        BL --> ORM["🗂️ Prisma ORM"]
-        ORM --> DB[("💾 Database<br/>SQLite / PostgreSQL")]
-    end
+    API --> AUTH["🔐 Authentication"]
+    API --> LOGIC["🧩 Business Logic"]
+    LOGIC --> ORM["🗂️ Prisma ORM"]
+    ORM --> DB[("💾 SQLite / PostgreSQL")]
 
-    subgraph Scraping["Price Fetching"]
-        API --> PF["🔍 Price Fetcher"]
-        PF --> STORE["🛍️ Amazon / Flipkart"]
-    end
+    API --> FETCHER["🔍 Price Fetcher"]
+    FETCHER --> STORES["🛍️ Amazon / Flipkart"]
 
-    subgraph AI["AI Layer"]
-        API --> AIE["🤖 AI Assistant Engine"]
-        AIE --> LLM["🧠 LLM API"]
-        AIE --> FALL["📏 Rule-Based Fallback"]
-    end
+    API --> AI["🤖 AI Assistant"]
+    AI --> LLM["🧠 LLM API"]
+    AI --> FALLBACK["📏 Rule-Based Fallback"]
 
-    subgraph Notify["Notification Layer"]
-        API --> NE["🔔 Notification Engine"]
-        NE --> MAIL["📧 Nodemailer SMTP"]
-        MAIL --> INBOX["📥 User Email Inbox"]
-    end
-
-    style U fill:#0f172a,stroke:#38bdf8,color:#fff
-    style FE fill:#1e293b,stroke:#38bdf8,color:#fff
-    style API fill:#1e293b,stroke:#38bdf8,color:#fff
-    style DB fill:#0f172a,stroke:#22d3ee,color:#fff
-    style INBOX fill:#0f172a,stroke:#22d3ee,color:#fff
+    API --> ALERTS["🔔 Notification Engine"]
+    ALERTS --> APP["📱 In-App Alert"]
+    ALERTS --> EMAIL["📧 Email Alert"]
 ```
 
----
-
-## 🔁 Product Tracking Workflow
+### Product Tracking Flow
 
 ```mermaid
 flowchart TD
-    A(["🔑 User Logs In"]) --> B["🔗 Add Product URL"]
-    B --> C["🎯 Enter Target Price"]
-    C --> D{"🏬 Detect Store"}
-    D -->|Amazon| E["💰 Fetch Current Price"]
+    A(["User Logs In"]) --> B["Add Product URL"]
+    B --> C["Set Target Price"]
+    C --> D{"Detect Store"}
+    D -->|Amazon| E["Fetch Current Price"]
     D -->|Flipkart| E
-    E --> F["💾 Save Product"]
-    F --> G["📌 Create Tracker"]
-    G --> H["📊 Show in Dashboard"]
-    H --> I["🔄 Refresh Price"]
-    I --> J["📈 Save Price History"]
-    J --> K{"Current Price ≤ Target Price?"}
-    K -- ✅ Yes --> L["🔔 Create Notification"]
-    L --> M["📧 Send Email Alert"]
-    K -- ❌ No --> N["👀 Continue Monitoring"]
-    N -.->|next scheduled run| I
-
-    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
-    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
-    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
-    classDef alert fill:#0f172a,stroke:#f43f5e,color:#fff
-    class A start
-    class B,C,E,F,G,H,I,J,N action
-    class D,K decision
-    class L,M alert
-```
-
----
-
-## 🤖 AI Assistant Workflow
-
-```mermaid
-flowchart TD
-    A(["💬 User Sends Message"]) --> B["📝 Parse Natural Language Input"]
-    B --> C{"🔑 AI API Key Configured?"}
-    C -- Yes --> D["🧠 Call LLM API"]
-    C -- No --> E["📏 Rule-Based Fallback Engine"]
-    D --> F["📦 Structured JSON Response"]
-    E --> F
-    F --> G{"🎯 Detected Intent"}
-    G -->|TRACK_PRODUCT| H["➕ Extract URL + Target Price"]
-    G -->|PRICE_ADVICE| I["📊 Generate Buy / Wait Recommendation"]
-    G -->|GENERAL_HELP| J["💡 Return Guidance Message"]
-    H --> K["✅ Suggest: Add to Tracker"]
-    I --> K
-    J --> K
-
-    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
-    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
-    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
-    classDef result fill:#0f172a,stroke:#a855f7,color:#fff
-    class A start
-    class B,D,E,F,H,I,J action
-    class C,G decision
-    class K result
-```
-
----
-
-## 🔐 Authentication Flow
-
-```mermaid
-flowchart TD
-    A(["🧾 User Submits Login Form"]) --> B["⚙️ /api/auth/login"]
-    B --> C{"✅ Credentials Valid?"}
-    C -- No --> D["❌ Return 401 Unauthorized"]
-    C -- Yes --> E["🔒 Compare Password (bcryptjs)"]
-    E --> F["🪪 Generate JWT"]
-    F --> G["🍪 Set HTTP-only Cookie"]
-    G --> H["📊 Redirect to Dashboard"]
-    H --> I["🛡️ Middleware Verifies Cookie on Every Request"]
-    I --> J{"Valid Session?"}
-    J -- Yes --> K["✅ Allow Access to Protected Route"]
-    J -- No --> L["🔁 Redirect to Login"]
-
-    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
-    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
-    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
-    classDef fail fill:#0f172a,stroke:#f43f5e,color:#fff
-    class A start
-    class B,E,F,G,H,I,K action
-    class C,J decision
-    class D,L fail
-```
-
----
-
-## 📧 Email Alert Flow
-
-```mermaid
-flowchart TD
-    A(["🔄 Price Refresh Job Runs"]) --> B{"Current Price ≤ Target Price?"}
-    B -- No --> C["👀 Continue Monitoring"]
-    B -- Yes --> D["🔔 Create In-App Notification"]
-    D --> E{"📬 Duplicate Alert Already Sent?"}
-    E -- Yes --> C
-    E -- No --> F["✉️ Build Email via Nodemailer"]
-    F --> G{"🔐 SMTP Connection OK?"}
-    G -- No --> H["⚠️ Log Failure Safely<br/>(Price Refresh Continues)"]
-    G -- Yes --> I["📤 Send Email to Tracker Owner"]
-    I --> J["📥 User Email Inbox"]
-
-    classDef start fill:#0f172a,stroke:#22c55e,color:#fff
-    classDef action fill:#1e293b,stroke:#38bdf8,color:#fff
-    classDef decision fill:#1e293b,stroke:#facc15,color:#fff
-    classDef fail fill:#0f172a,stroke:#f43f5e,color:#fff
-    classDef success fill:#0f172a,stroke:#22d3ee,color:#fff
-    class A start
-    class C,D,F,I action
-    class B,E,G decision
-    class H fail
-    class J success
+    E --> F["Save Product and Tracker"]
+    F --> G["Display on Dashboard"]
+    G --> H["Refresh Price"]
+    H --> I["Store Price History"]
+    I --> J{"Price ≤ Target?"}
+    J -->|Yes| K["Create Notification"]
+    K --> L["Send Email Alert"]
+    J -->|No| M["Continue Monitoring"]
 ```
 
 ---
 
 ## 🛒 Price Fetching Strategy
 
-**Amazon** — Price extraction uses Cheerio, which parses static HTML and extracts price from known selectors.
+### Amazon
 
-**Flipkart** — Uses Playwright because Flipkart pages are more dynamic. Flipkart also has strong anti-bot protection, so Pricelytix follows a safety-first approach:
+Amazon prices are extracted with **Cheerio** by parsing static HTML and checking known price selectors.
 
-- If a reliable price is found → save it
-- If the price is blocked or unreliable → return null
-- If null is returned → keep the last known price
+### Flipkart
 
-This prevents wrong prices from triggering false alerts.
+Flipkart pages are more dynamic, so Pricelytix uses **Playwright**. Because anti-bot protection can block or distort results, the application follows a safety-first approach:
+
+1. Save the price only when it is reliable.
+2. Return `null` when the result is blocked or uncertain.
+3. Preserve the last known valid price when scraping fails.
+4. Avoid generating alerts from unreliable values.
 
 ---
 
 ## 🗄 Database Models
 
-Pricelytix uses five main database models.
-
-**User** — Stores user account details.
-- id, email, name, passwordHash, createdAt
-
-**Product** — Stores product information.
-- id, title, url, store, currentPrice, imageUrl, createdAt
-
-**Tracker** — Connects a user to a product with a target price.
-- id, userId, productId, targetPrice, isActive, createdAt
-
-**PriceHistory** — Stores historical price values.
-- id, productId, price, createdAt
-
-**Notification** — Stores target price alerts.
-- id, trackerId, productId, message, type, isRead, createdAt
-
-### 🧾 Database Relationship Diagram
+| Model          | Purpose                                    | Main Fields                                                              |
+| -------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| `User`         | Stores account information                 | `id`, `email`, `name`, `passwordHash`, `createdAt`                       |
+| `Product`      | Stores product details                     | `id`, `title`, `url`, `store`, `currentPrice`, `imageUrl`, `createdAt`   |
+| `Tracker`      | Connects a user, product, and target price | `id`, `userId`, `productId`, `targetPrice`, `isActive`, `createdAt`      |
+| `PriceHistory` | Stores historical prices                   | `id`, `productId`, `price`, `createdAt`                                  |
+| `Notification` | Stores price alerts                        | `id`, `trackerId`, `productId`, `message`, `type`, `isRead`, `createdAt` |
 
 ```mermaid
 erDiagram
@@ -441,133 +203,42 @@ erDiagram
     PRODUCT ||--o{ PRICEHISTORY : has
     TRACKER ||--o{ NOTIFICATION : triggers
     PRODUCT ||--o{ NOTIFICATION : "relates to"
-
-    USER {
-        string id
-        string email
-        string name
-        string passwordHash
-        datetime createdAt
-    }
-    PRODUCT {
-        string id
-        string title
-        string url
-        string store
-        float currentPrice
-        string imageUrl
-        datetime createdAt
-    }
-    TRACKER {
-        string id
-        string userId
-        string productId
-        float targetPrice
-        boolean isActive
-        datetime createdAt
-    }
-    PRICEHISTORY {
-        string id
-        string productId
-        float price
-        datetime createdAt
-    }
-    NOTIFICATION {
-        string id
-        string trackerId
-        string productId
-        string message
-        string type
-        boolean isRead
-        datetime createdAt
-    }
 ```
 
 ---
 
-## 📡 Important API Routes
+## 📡 API Routes
 
-| Method | Route | Purpose |
-|---|---|---|
-| POST | `/api/auth/signup` | Create user account |
-| POST | `/api/auth/login` | Login user |
-| POST | `/api/auth/logout` | Logout user |
-| GET | `/api/auth/me` | Get current user |
-| POST | `/api/products` | Add product tracker |
-| PATCH | `/api/products/[id]/refresh` | Refresh one product |
-| DELETE | `/api/products/[id]` | Delete product |
-| PATCH | `/api/trackers/[id]` | Edit target price |
-| POST | `/api/refresh-all` | Refresh all products |
-| PATCH | `/api/notifications/[id]/read` | Mark notification as read |
-| POST | `/api/ai/assistant` | AI assistant response |
-
----
-
-## 🧠 Prompt Engineering
-
-The AI assistant uses structured prompt engineering to produce predictable output. Instead of allowing the AI to return free-form text, the system asks it to return a strict JSON structure.
-
-Prompt style:
-
-```
-You are an AI shopping assistant for Pricelytix.
-Analyze the user's shopping request.
-Extract the intent, product URL, target price, summary, recommendation, and next action.
-Return only valid JSON.
-```
-
-Expected response format:
-
-```json
-{
-  "intent": "TRACK_PRODUCT",
-  "productUrl": "https://www.amazon.in/example",
-  "targetPrice": 50000,
-  "summary": "The user wants to track this product until it drops below ₹50,000.",
-  "recommendation": "Track this product and wait for the price drop.",
-  "nextAction": "Add this product to the tracker."
-}
-```
-
-This improves accuracy, consistency, predictability, frontend rendering, and overall user experience.
+| Method   | Route                          | Purpose                         |
+| -------- | ------------------------------ | ------------------------------- |
+| `POST`   | `/api/auth/signup`             | Create a user account           |
+| `POST`   | `/api/auth/login`              | Authenticate a user             |
+| `POST`   | `/api/auth/logout`             | End the current session         |
+| `GET`    | `/api/auth/me`                 | Return the authenticated user   |
+| `POST`   | `/api/products`                | Add a product tracker           |
+| `PATCH`  | `/api/products/[id]/refresh`   | Refresh one product price       |
+| `DELETE` | `/api/products/[id]`           | Delete a tracked product        |
+| `PATCH`  | `/api/trackers/[id]`           | Update a target price           |
+| `POST`   | `/api/refresh-all`             | Refresh every tracked product   |
+| `PATCH`  | `/api/notifications/[id]/read` | Mark a notification as read     |
+| `POST`   | `/api/ai/assistant`            | Process an AI assistant request |
 
 ---
 
-## 🧠 AI Fallback Mode
+## 🛡 Security
 
-If no AI API key is configured, the system still works using fallback AI.
-
-Fallback AI uses:
-
-- URL regex detection
-- Target price number extraction
-- Intent keyword matching
-- Rule-based recommendation generation
-
-Supported intents:
-
-- `TRACK_PRODUCT`
-- `PRICE_ADVICE`
-- `GENERAL_HELP`
-
-This ensures the AI assistant works even without paid API access.
+* Password hashing with `bcryptjs`
+* JWT sessions stored in HTTP-only cookies
+* Middleware-protected private routes
+* Ownership validation using `userId`
+* Server-side AI and SMTP credentials
+* Secrets stored in environment variables
+* Protected cron endpoint using `CRON_SECRET`
+* Safe email failure handling
 
 ---
 
-## 🛡 Security Features
-
-- Passwords are hashed using bcryptjs
-- JWT is stored in an HTTP-only cookie
-- Protected routes using middleware
-- User data isolation using `userId`
-- API routes verify ownership before updates
-- Secrets stored in `.env` and Vercel environment variables
-- SMTP password and JWT secret are never exposed to the client
-- AI API key is used only on the server side
-
----
-
-## 📦 Local Setup
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
@@ -588,7 +259,6 @@ Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL="file:./dev.db"
-
 JWT_SECRET="your-local-secret-key"
 
 SMTP_HOST="smtp.gmail.com"
@@ -605,149 +275,127 @@ CRON_SECRET="your-cron-secret"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-### 4. Generate Prisma Client
+> Never commit real credentials or production secrets to GitHub.
+
+### 4. Prepare the Database
 
 ```bash
 npx prisma generate
-```
-
-### 5. Run Migrations
-
-```bash
 npx prisma migrate dev
 ```
 
-### 6. Start Development Server
+### 5. Start the Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open `http://localhost:3000` in your browser.
 
 ---
 
-## 🧪 Useful Scripts
+## 🧪 Useful Commands
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Build project |
-| `npm run start` | Start production server |
-| `npx prisma generate` | Generate Prisma client |
-| `npx prisma migrate dev` | Run local migrations |
-| `npm run refresh:all` | Refresh all product prices |
-| `npm run test:email` | Test email alert system |
-| `npm run test:flipkart` | Test Flipkart price fetching |
+| Command                  | Purpose                       |
+| ------------------------ | ----------------------------- |
+| `npm run dev`            | Start the development server  |
+| `npm run build`          | Create a production build     |
+| `npm run start`          | Start the production server   |
+| `npx prisma generate`    | Generate the Prisma client    |
+| `npx prisma migrate dev` | Run local database migrations |
+| `npm run refresh:all`    | Refresh all product prices    |
+| `npm run test:email`     | Test the email alert system   |
+| `npm run test:flipkart`  | Test Flipkart price fetching  |
 
 ---
 
-## 🚀 Production Deployment
+## 🌐 Production Deployment
 
-The project is deployed using GitHub, Vercel, and Neon PostgreSQL.
+Pricelytix uses **GitHub**, **Vercel**, and **Neon PostgreSQL** in production.
 
-### Production Environment Variables
-
-Add these variables in Vercel:
-
-```env
-DATABASE_URL=""
-JWT_SECRET=""
-SMTP_HOST=""
-SMTP_PORT="587"
-SMTP_USER=""
-SMTP_PASS=""
-ALERT_EMAIL=""
-CRON_SECRET=""
-AI_API_KEY=""
-AI_BASE_URL="https://api.openai.com/v1"
-AI_MODEL=""
-NEXT_PUBLIC_APP_URL=""
-```
-
-### Production Database
-
-Local development uses SQLite, but production uses PostgreSQL. Production database provider: **Neon PostgreSQL**.
-
-### Deployment Steps
-
-1. Push code to GitHub.
+1. Push the project to GitHub.
 2. Create a Neon PostgreSQL database.
-3. Copy the Neon PostgreSQL connection string.
-4. Import the GitHub repo into Vercel.
-5. Add environment variables in Vercel.
-6. Deploy the project.
-7. Create database tables using Prisma.
-8. Test signup, login, dashboard, and product tracking.
-
-### 🚀 Deployment Flow
-
-```mermaid
-flowchart LR
-    A["💻 Local Development"] --> B["📦 Push to GitHub"]
-    B --> C["▲ Import into Vercel"]
-    C --> D["🔑 Add Environment Variables"]
-    D --> E["🐘 Connect Neon PostgreSQL"]
-    E --> F["🏗️ Run Prisma Migrations"]
-    F --> G["🚀 Deploy Build"]
-    G --> H["🌐 Live Production App"]
-    H --> I["⏱️ Vercel Cron Triggers Refresh"]
-    I --> J["📧 Email Alerts Sent to Users"]
-
-    classDef step fill:#1e293b,stroke:#38bdf8,color:#fff
-    classDef live fill:#0f172a,stroke:#22c55e,color:#fff
-    class A,B,C,D,E,F,G step
-    class H,I,J live
-```
+3. Add the Neon connection string to Vercel.
+4. Configure the required environment variables.
+5. Run the required Prisma database setup.
+6. Deploy the application.
+7. Test authentication, tracking, notifications, email, and AI features.
 
 ---
 
 ## ✅ Testing Checklist
 
-Before final demo, verify:
-
-- [ ] Signup works
-- [ ] Login works
-- [ ] Logout works
-- [ ] Dashboard loads
-- [ ] Add product works
-- [ ] Product refresh works
-- [ ] Refresh all works
-- [ ] Edit target price works
-- [ ] Delete product works
-- [ ] Notification appears
-- [ ] Dismiss notification works
-- [ ] Email test works
-- [ ] AI assistant works
-- [ ] AI fallback mode works
-- [ ] Product details page loads
-- [ ] Price history chart renders
-- [ ] Protected routes redirect when logged out
+* [ ] Signup, login, and logout work
+* [ ] Protected routes reject unauthenticated users
+* [ ] Products can be added, refreshed, updated, and deleted
+* [ ] Price history and charts load correctly
+* [ ] Target-price notifications appear
+* [ ] Duplicate notifications are prevented
+* [ ] Email alerts work without breaking refresh jobs
+* [ ] AI assistant works with an API key
+* [ ] AI fallback mode works without an API key
 
 ---
 
-## ⚠️ Limitations
+## ⚠️ Current Limitations
 
-- Flipkart may block scraping in production
-- Amazon scraping may also be blocked occasionally
-- Real AI mode requires an API key
-- Email requires valid SMTP credentials
-- Vercel Hobby cron has scheduling limits
-- No mobile app yet
-- No WhatsApp alerts yet
+* Amazon and Flipkart may block scraping.
+* Real AI mode requires a compatible API key.
+* Email alerts require valid SMTP credentials.
+* Vercel Hobby cron has scheduling limitations.
+* A mobile app and WhatsApp alerts are not yet available.
 
 ---
 
-## 🔮 Future Enhancements
+## 🔮 Roadmap
 
-- WhatsApp alerts
-- Chrome extension
-- Product comparison
-- Mobile app
-- Admin dashboard
-- AI price prediction
-- Auto-buy assistant
-- Better scraping API integration
-- Subscription/payment system
+* [ ] WhatsApp alerts
+* [ ] Chrome extension
+* [ ] Product comparison
+* [ ] Mobile application
+* [ ] Admin dashboard
+* [ ] AI price prediction
+* [ ] Auto-buy assistant
+* [ ] Reliable scraping-provider integration
+* [ ] Subscription and payment system
 
 ---
+
+## 🤝 Contributing
+
+Contributions, suggestions, and bug reports are welcome.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Commit and push your changes.
+4. Open a pull request.
+
+---
+
+## 📄 License
+
+This project is distributed under the **MIT License**.
+
+---
+
+## 👨‍💻 Author
+
+<div align="center">
+
+### Nithish Sarwin
+
+**Artificial Intelligence & Machine Learning Student | Java and Backend Developer**
+
+[![GitHub](https://img.shields.io/badge/GitHub-Nithish--code17-181717?style=for-the-badge\&logo=github)](https://github.com/Nithish-code17)
+
+</div>
+
+---
+
+<div align="center">
+
+**Built to make online shopping more informed, timely, and intelligent.**
+
+⭐ Star the repository if you find Pricelytix useful.
+
+</div>
