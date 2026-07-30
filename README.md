@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛒 Pricelytix
+# 🛒 Pricelyti
 ### AI-Powered Price Tracking Agent
 
 **Track product prices. Analyze trends. Get smart alerts. Let AI tell you when to buy.**
