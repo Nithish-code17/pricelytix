@@ -3,7 +3,7 @@
 # 🛒 Pricelytix
 ### AI-Powered Price Tracking Agent
 
-**Track product prices. Analyze trends. Get smart alerts. Let AI tell you when to buy.**
+**Track product prices. Analyze trends. Get smart alerts. Let AI tell you when to buy**
 
 <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" />
 <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
